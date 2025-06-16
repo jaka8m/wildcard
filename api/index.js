@@ -39,15 +39,15 @@ const cfHeaders = {
 };
 
 /**
- * Uniform Cloudflare fetch:
+ * cloudflareFetch: Tidak pernah crash di JSON.parse
  * - method: 'GET'|'PUT'|'DELETE'
- * - endpoint: '' or '/:id'
- * - body: JS object (will JSON.stringify)
- *
- * Returns { cfRes, data, raw } where:
- * - cfRes = original Response
- * - data = parsed JSON if content-type JSON & valid
- * - raw  = full text otherwise
+ * - endpoint: '' atau '/:id'
+ * - body: JS object untuk PUT
+ * 
+ * Mengembalikan { cfRes, data, raw }:
+ * - cfRes: Response asli
+ * - data: hasil JSON.parse kalau valid JSON
+ * - raw: isi text kalau bukan JSON atau parse gagal
  */
 async function cloudflareFetch(method, endpoint = '', body) {
   const opts = { method, headers: cfHeaders };
@@ -82,10 +82,11 @@ app.get('/api/subdomains', async (req, res) => {
       return res.status(cfRes.status).json({ success: false, message: msg });
     }
     if (!data) {
-      console.warn('GET /api/subdomains: non‑JSON OK response:', raw);
-      return res
-        .status(502)
-        .json({ success: false, message: 'Invalid response format from Cloudflare' });
+      console.warn('GET: non‑JSON OK response:', raw);
+      return res.status(502).json({
+        success: false,
+        message: 'Invalid response format from Cloudflare',
+      });
     }
 
     const subdomains = data.result
@@ -106,15 +107,16 @@ app.get('/api/subdomains', async (req, res) => {
 // POST /api/subdomains
 app.post('/api/subdomains', async (req, res) => {
   const { subdomainPart } = req.body;
-  if (!subdomainPart?.trim())
+  if (!subdomainPart?.trim()) {
     return res.status(400).json({ success: false, message: 'subdomainPart wajib diisi.' });
-
-  if (!/^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$/.test(subdomainPart))
+  }
+  if (!/^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$/.test(subdomainPart)) {
     return res.status(400).json({
       success: false,
       message:
         'Subdomain hanya huruf, angka, hyphen, dan tidak boleh diawali/diakhiri hyphen.',
     });
+  }
 
   const hostname = `${subdomainPart.toLowerCase()}.${CLOUDFLARE_ROOT_DOMAIN}`;
 
@@ -131,7 +133,7 @@ app.post('/api/subdomains', async (req, res) => {
         .json({ success: false, message: `${hostname} sudah terdaftar.` });
     }
 
-    // 2) Create
+    // 2) Create baru
     const create = await cloudflareFetch('PUT', '', {
       environment: 'production',
       hostname,
@@ -144,10 +146,11 @@ app.post('/api/subdomains', async (req, res) => {
       return res.status(create.cfRes.status).json({ success: false, message: msg });
     }
     if (!create.data) {
-      console.warn('POST /api/subdomains: non‑JSON OK response:', create.raw);
-      return res
-        .status(502)
-        .json({ success: false, message: 'Invalid response format from Cloudflare' });
+      console.warn('POST: non‑JSON OK response:', create.raw);
+      return res.status(502).json({
+        success: false,
+        message: 'Invalid response format from Cloudflare',
+      });
     }
 
     return res.status(201).json({
@@ -165,8 +168,10 @@ app.post('/api/subdomains', async (req, res) => {
 app.delete('/api/subdomains/:id', async (req, res) => {
   const { id } = req.params;
   const { password } = req.body;
-  if (password !== ADMIN_PASSWORD)
+
+  if (password !== ADMIN_PASSWORD) {
     return res.status(401).json({ success: false, message: 'Password salah.' });
+  }
 
   try {
     const del = await cloudflareFetch('DELETE', `/${id}`);
@@ -175,7 +180,8 @@ app.delete('/api/subdomains/:id', async (req, res) => {
       const msg = del.data?.errors?.[0]?.message || del.raw || 'Gagal menghapus.';
       return res.status(del.cfRes.status).json({ success: false, message: msg });
     }
-    // even if non-JSON on success, we ignore the raw body
+
+    // Sukses (meski non-JSON), kirim OK:
     return res.json({ success: true, message: 'Subdomain berhasil dihapus.' });
   } catch (err) {
     console.error(`DELETE /api/subdomains/${id} error:`, err);
@@ -183,5 +189,5 @@ app.delete('/api/subdomains/:id', async (req, res) => {
   }
 });
 
-// Export untuk Vercel
+// Ekspor untuk Vercel
 module.exports = app;
