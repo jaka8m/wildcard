@@ -145,13 +145,13 @@
             <div class="card-body p-4">
                 <div class="mb-4">
                     <label class="block text-sm font-medium mb-1">Domain:</label>
-                    <input type="text" value="joss.krikkrik.tech" disabled class="w-full p-2 border border-gray-600 rounded bg-gray-600 text-gray-300 cursor-not-allowed text-sm">
+                    <input type="text" id="rootDomainDisplay" value="Loading..." disabled class="w-full p-2 border border-gray-600 rounded bg-gray-600 text-gray-300 cursor-not-allowed text-sm">
                 </div>
                 <div class="mb-4">
                     <label for="subdomainInput" class="block text-sm font-medium mb-1">Subdomain</label>
                     <div class="flex flex-col sm:flex-row">
                         <input type="text" id="subdomainInput" placeholder="Enter subdomain (e.g., blog)" class="flex-grow p-2 border border-gray-600 rounded-t-md sm:rounded-l-md sm:rounded-t-none bg-gray-input text-white outline-none text-sm mb-2 sm:mb-0">
-                        <span class="bg-gray-700 text-white p-2 rounded-b-md sm:rounded-r-md sm:rounded-b-none whitespace-nowrap flex items-center justify-center text-sm">.joss.krikkrik.tech</span>
+                        <span id="rootDomainSuffix" class="bg-gray-700 text-white p-2 rounded-b-md sm:rounded-r-md sm:rounded-b-none whitespace-nowrap flex items-center justify-center text-sm">.Loading...</span>
                     </div>
                 </div>
                 <button id="addSubdomainBtn" class="w-full py-2 px-4 rounded bg-purple-btn text-white text-base hover:bg-purple-header transition duration-300">Add Subdomain</button>
@@ -243,9 +243,9 @@
     </footer>
 
     <script>
-        // URL dasar untuk backend API Anda. Karena frontend dan backend di server yang sama,
-        // kita bisa menggunakan path relatif atau localhost dengan port yang sama.
-        const BASE_API_URL = 'http://localhost:3000/api'; // Sesuaikan port jika Anda mengubahnya di app.js
+        // URL dasar untuk backend API Anda. Karena frontend dan backend di-deploy di Vercel,
+        // kita bisa menggunakan path relatif. Vercel akan secara otomatis me-route /api ke fungsi Anda.
+        const BASE_API_URL = '/api'; // **DIUBAH** dari localhost:3000
 
         // UI Elements
         const subdomainInput = document.getElementById('subdomainInput');
@@ -269,6 +269,9 @@
         const nextPageBtn = document.getElementById('nextPageBtn');
         const themeToggle = document.getElementById('themeToggle');
         const themeText = document.getElementById('themeText');
+        const rootDomainDisplay = document.getElementById('rootDomainDisplay'); // Tambahan elemen HTML
+        const rootDomainSuffix = document.getElementById('rootDomainSuffix'); // Tambahan elemen HTML
+
 
         let currentDomainToDelete = null;
         let allSubdomains = []; // Array to hold all fetched subdomains
@@ -284,14 +287,12 @@
                 html.classList.remove('dark');
                 html.classList.add('light');
                 localStorage.setItem('theme', 'light');
-                themeText.textContent = 'Dark Mode';
-                themeToggle.innerHTML = '<i class="fas fa-moon mr-2 text-blue-300"></i><span>Dark Mode</span>';
+                themeToggle.innerHTML = '<i class="fas fa-moon mr-2 text-blue-300"></i><span>Dark Mode</span>'; // Mengubah ikon dan teks
             } else {
                 html.classList.remove('light');
                 html.classList.add('dark');
                 localStorage.setItem('theme', 'dark');
-                themeText.textContent = 'Light Mode';
-                themeToggle.innerHTML = '<i class="fas fa-sun mr-2 text-yellow-400"></i><span>Light Mode</span>';
+                themeToggle.innerHTML = '<i class="fas fa-sun mr-2 text-yellow-400"></i><span>Light Mode</span>'; // Mengubah ikon dan teks
             }
         }
 
@@ -303,10 +304,8 @@
             const html = document.documentElement;
             html.classList.add(savedTheme);
             if (savedTheme === 'light') {
-                themeText.textContent = 'Dark Mode';
                 themeToggle.innerHTML = '<i class="fas fa-moon mr-2 text-blue-300"></i><span>Dark Mode</span>';
             } else {
-                themeText.textContent = 'Light Mode';
                 themeToggle.innerHTML = '<i class="fas fa-sun mr-2 text-yellow-400"></i><span>Light Mode</span>';
             }
         }
@@ -328,6 +327,7 @@
                 successMessageDiv.classList.remove('hidden');
             }
 
+            // Hapus pesan setelah 5 detik
             setTimeout(() => {
                 errorMessageDiv.classList.add('hidden');
                 successMessageDiv.classList.add('hidden');
@@ -474,6 +474,33 @@
         }
 
         /**
+         * Fetches the root domain from the API (used for display in the "Add Subdomain" section).
+         */
+        async function loadRootDomain() {
+            try {
+                const response = await fetch(`${BASE_API_URL}/root-domain`); // Rute baru untuk mendapatkan root domain
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Failed to load root domain.');
+                }
+                const data = await response.json();
+                if (data.success && data.rootDomain) {
+                    rootDomainDisplay.value = data.rootDomain;
+                    rootDomainSuffix.textContent = `.${data.rootDomain}`;
+                } else {
+                    rootDomainDisplay.value = "Error loading domain";
+                    rootDomainSuffix.textContent = ".Error";
+                    showNotification(data.message || 'Failed to load root domain for display.', 'error');
+                }
+            } catch (error) {
+                console.error('Error fetching root domain:', error);
+                rootDomainDisplay.value = "Error loading domain";
+                rootDomainSuffix.textContent = ".Error";
+                showNotification(`Error loading root domain: ${error.message}`, 'error');
+            }
+        }
+
+        /**
          * Applies search filters and re-renders the subdomain table.
          */
         function applyFiltersAndRender() {
@@ -611,8 +638,9 @@
             applyFiltersAndRender();
         });
 
+        // Menambahkan event listener untuk search input
         searchSubdomainInput.addEventListener('keyup', () => {
-            currentPage = 1; // Reset to first page when search term changes
+            currentPage = 1; // Reset ke halaman pertama saat pencarian berubah
             applyFiltersAndRender();
         });
 
@@ -624,18 +652,19 @@
         });
 
         nextPageBtn.addEventListener('click', () => {
-            const totalPages = Math.ceil(allSubdomains.length / entriesPerPage);
+            const totalPages = Math.ceil(allSubdomains.filter(domain =>
+                domain.hostname.toLowerCase().includes(searchSubdomainInput.value.toLowerCase().trim())
+            ).length / entriesPerPage);
             if (currentPage < totalPages) {
                 currentPage++;
                 applyFiltersAndRender();
             }
         });
 
-        // Initial load of subdomains and apply theme when the DOM content is fully loaded
-        document.addEventListener('DOMContentLoaded', () => {
-            applySavedTheme();
-            loadSubdomains();
-        });
+        // Initial calls
+        applySavedTheme(); // Apply theme first
+        loadRootDomain(); // Load the root domain for display
+        loadSubdomains(); // Load subdomains when the page loads
     </script>
 </body>
 </html>
