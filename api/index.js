@@ -1,12 +1,12 @@
 // api/index.js
-require('dotenv').config(); // Hanya untuk development lokal
+require('dotenv').config();             // Hanya untuk development lokal
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
 
 const app = express();
 
-// === Environment Variables (set di Vercel atau .env lokal) ===
+// === ENVIRONMENT VARIABLES ===
 const {
   CLOUDFLARE_API_KEY,
   CLOUDFLARE_ACCOUNT_ID,
@@ -31,7 +31,7 @@ if (
 app.use(cors());
 app.use(express.json());
 
-// Cloudflare API base URL & headers
+// Base URL & headers for Cloudflare API
 const CF_BASE = `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/domains`;
 const cfHeaders = {
   Authorization: `Bearer ${CLOUDFLARE_API_KEY}`,
@@ -39,18 +39,35 @@ const cfHeaders = {
 };
 
 /**
- * Baca response sebagai text, coba parse JSON.
- * - Jika valid JSON: kembalikan { isJson: true, data }
- * - Jika bukan JSON: kembalikan { isJson: false, raw }
+ * Uniform Cloudflare fetch:
+ * - method: 'GET'|'PUT'|'DELETE'
+ * - endpoint: '' or '/:id'
+ * - body: JS object (will JSON.stringify)
+ *
+ * Returns { cfRes, data, raw } where:
+ * - cfRes = original Response
+ * - data = parsed JSON if content-type JSON & valid
+ * - raw  = full text otherwise
  */
-async function parseCloudflareResponse(res) {
-  const bodyText = await res.text();
-  try {
-    const data = JSON.parse(bodyText);
-    return { isJson: true, data };
-  } catch {
-    return { isJson: false, raw: bodyText };
+async function cloudflareFetch(method, endpoint = '', body) {
+  const opts = { method, headers: cfHeaders };
+  if (body) opts.body = JSON.stringify(body);
+
+  const cfRes = await fetch(`${CF_BASE}${endpoint}`, opts);
+  const ct = cfRes.headers.get('content-type') || '';
+  let data = null, raw = null;
+
+  if (ct.includes('application/json')) {
+    try {
+      data = await cfRes.json();
+    } catch {
+      raw = await cfRes.text();
+    }
+  } else {
+    raw = await cfRes.text();
   }
+
+  return { cfRes, data, raw };
 }
 
 // --- ROUTES ---
@@ -58,21 +75,17 @@ async function parseCloudflareResponse(res) {
 // GET /api/subdomains
 app.get('/api/subdomains', async (req, res) => {
   try {
-    const cloudRes = await fetch(CF_BASE, { headers: cfHeaders });
-    const { isJson, data, raw } = await parseCloudflareResponse(cloudRes);
+    const { cfRes, data, raw } = await cloudflareFetch('GET');
 
-    if (!cloudRes.ok) {
-      const msg = isJson
-        ? data.errors?.[0]?.message || 'Gagal mengambil subdomains'
-        : raw || 'Unknown error';
-      return res.status(cloudRes.status).json({ success: false, message: msg });
+    if (!cfRes.ok) {
+      const msg = data?.errors?.[0]?.message || raw || 'Unknown error';
+      return res.status(cfRes.status).json({ success: false, message: msg });
     }
-    if (!isJson) {
-      console.warn('Unexpected non-JSON response:', raw);
-      return res.status(502).json({
-        success: false,
-        message: 'Invalid response format from Cloudflare',
-      });
+    if (!data) {
+      console.warn('GET /api/subdomains: non‑JSON OK response:', raw);
+      return res
+        .status(502)
+        .json({ success: false, message: 'Invalid response format from Cloudflare' });
     }
 
     const subdomains = data.result
@@ -93,65 +106,54 @@ app.get('/api/subdomains', async (req, res) => {
 // POST /api/subdomains
 app.post('/api/subdomains', async (req, res) => {
   const { subdomainPart } = req.body;
-  if (!subdomainPart?.trim()) {
-    return res
-      .status(400)
-      .json({ success: false, message: 'subdomainPart wajib diisi.' });
-  }
-  if (!/^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$/.test(subdomainPart)) {
+  if (!subdomainPart?.trim())
+    return res.status(400).json({ success: false, message: 'subdomainPart wajib diisi.' });
+
+  if (!/^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$/.test(subdomainPart))
     return res.status(400).json({
       success: false,
       message:
         'Subdomain hanya huruf, angka, hyphen, dan tidak boleh diawali/diakhiri hyphen.',
     });
-  }
 
   const hostname = `${subdomainPart.toLowerCase()}.${CLOUDFLARE_ROOT_DOMAIN}`;
 
   try {
-    // 1) Cek apakah sudah ada
-    const checkRes = await fetch(CF_BASE, { headers: cfHeaders });
-    const checkParsed = await parseCloudflareResponse(checkRes);
-    if (!checkRes.ok) {
-      const msg = checkParsed.isJson
-        ? checkParsed.data.errors?.[0]?.message
-        : checkParsed.raw;
-      throw new Error(msg || 'Error checking existing domains');
+    // 1) Cek existing
+    const check = await cloudflareFetch('GET');
+    if (!check.cfRes.ok) {
+      const msg = check.data?.errors?.[0]?.message || check.raw || 'Error checking domains';
+      throw new Error(msg);
     }
-    if (
-      checkParsed.isJson &&
-      checkParsed.data.result.some((d) => d.hostname === hostname)
-    ) {
+    if (check.data.result.some((d) => d.hostname === hostname)) {
       return res
         .status(409)
         .json({ success: false, message: `${hostname} sudah terdaftar.` });
     }
 
-    // 2) Tambah
-    const createRes = await fetch(CF_BASE, {
-      method: 'PUT',
-      headers: cfHeaders,
-      body: JSON.stringify({
-        environment: 'production',
-        hostname,
-        service: CLOUDFLARE_SERVICE_NAME,
-        zone_id: CLOUDFLARE_ZONE_ID,
-      }),
+    // 2) Create
+    const create = await cloudflareFetch('PUT', '', {
+      environment: 'production',
+      hostname,
+      service: CLOUDFLARE_SERVICE_NAME,
+      zone_id: CLOUDFLARE_ZONE_ID,
     });
-    const createParsed = await parseCloudflareResponse(createRes);
-    if (!createRes.ok) {
-      const msg = createParsed.isJson
-        ? createParsed.data.errors?.[0]?.message
-        : createParsed.raw;
+
+    if (!create.cfRes.ok) {
+      const msg = create.data?.errors?.[0]?.message || create.raw || 'Gagal menambahkan.';
+      return res.status(create.cfRes.status).json({ success: false, message: msg });
+    }
+    if (!create.data) {
+      console.warn('POST /api/subdomains: non‑JSON OK response:', create.raw);
       return res
-        .status(createRes.status)
-        .json({ success: false, message: msg || 'Gagal menambahkan.' });
+        .status(502)
+        .json({ success: false, message: 'Invalid response format from Cloudflare' });
     }
 
     return res.status(201).json({
       success: true,
       message: `Subdomain '${hostname}' berhasil ditambahkan.`,
-      data: createParsed.data.result,
+      data: create.data.result,
     });
   } catch (err) {
     console.error('POST /api/subdomains error:', err);
@@ -163,29 +165,17 @@ app.post('/api/subdomains', async (req, res) => {
 app.delete('/api/subdomains/:id', async (req, res) => {
   const { id } = req.params;
   const { password } = req.body;
-  if (password !== ADMIN_PASSWORD) {
+  if (password !== ADMIN_PASSWORD)
     return res.status(401).json({ success: false, message: 'Password salah.' });
-  }
 
   try {
-    const delRes = await fetch(`${CF_BASE}/${id}`, {
-      method: 'DELETE',
-      headers: cfHeaders,
-    });
-    const parsed = await parseCloudflareResponse(delRes);
+    const del = await cloudflareFetch('DELETE', `/${id}`);
 
-    if (!delRes.ok) {
-      const msg = parsed.isJson
-        ? parsed.data.errors?.[0]?.message
-        : parsed.raw;
-      return res
-        .status(delRes.status)
-        .json({ success: false, message: msg || 'Gagal menghapus.' });
+    if (!del.cfRes.ok) {
+      const msg = del.data?.errors?.[0]?.message || del.raw || 'Gagal menghapus.';
+      return res.status(del.cfRes.status).json({ success: false, message: msg });
     }
-    if (!parsed.isJson) {
-      console.warn('DELETE unexpected non-JSON response:', parsed.raw);
-    }
-
+    // even if non-JSON on success, we ignore the raw body
     return res.json({ success: true, message: 'Subdomain berhasil dihapus.' });
   } catch (err) {
     console.error(`DELETE /api/subdomains/${id} error:`, err);
@@ -193,5 +183,5 @@ app.delete('/api/subdomains/:id', async (req, res) => {
   }
 });
 
-// Ekspor untuk Vercel
+// Export untuk Vercel
 module.exports = app;
