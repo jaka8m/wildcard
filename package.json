@@ -9,7 +9,6 @@
   "dependencies": {
     "express": "^4.19.2",
     "cors": "^2.8.5"
-    // 'node-fetch' tidak diperlukan jika menggunakan Node.js 18+
   },
   "devDependencies": {
     "nodemon": "^3.1.0"
