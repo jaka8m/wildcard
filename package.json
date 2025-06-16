@@ -1,0 +1,17 @@
+{
+  "name": "cloudflare-subdomain-manager",
+  "version": "1.0.0",
+  "description": "A simple web application to manage Cloudflare Worker subdomains.",
+  "main": "api/index.js",
+  "scripts": {
+    "start": "node api/index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5"
+    // 'node-fetch' tidak diperlukan jika menggunakan Node.js 18+
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
