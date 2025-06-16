@@ -1,188 +1,162 @@
 // api/index.js
+require('dotenv').config();       // Jika dijalankan lokal, pastikan paket dotenv terinstal
 const express = require('express');
 const cors = require('cors');
-const fetch = require('node-fetch'); // Pastikan 'node-fetch' terinstal
+const fetch = require('node-fetch');
 
 const app = express();
 
-// --- Informasi Sensitif yang Diambil dari Variabel Lingkungan ---
-// PENTING: JANGAN MASUKKAN KREDENSIAL INI SECARA LANGSUNG DI KODE ANDA.
-// GUNAKAN VARIABEL LINGKUNGAN DI VERCEL.
-const CLOUDFLARE_API_KEY = process.env.CLOUDFLARE_API_KEY;
-const CLOUDFLARE_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
-const CLOUDFLARE_ZONE_ID = process.env.CLOUDFLARE_ZONE_ID;
-const CLOUDFLARE_API_EMAIL = process.env.CLOUDFLARE_API_EMAIL;
-const CLOUDFLARE_SERVICE_NAME = process.env.CLOUDFLARE_SERVICE_NAME;
-const CLOUDFLARE_ROOT_DOMAIN = process.env.CLOUDFLARE_ROOT_DOMAIN;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+// --- Baca dari environment variables ---
+const {
+  CLOUDFLARE_API_KEY,
+  CLOUDFLARE_ACCOUNT_ID,
+  CLOUDFLARE_ZONE_ID,
+  CLOUDFLARE_API_EMAIL,
+  CLOUDFLARE_SERVICE_NAME = 'joss',
+  CLOUDFLARE_ROOT_DOMAIN,
+  ADMIN_PASSWORD
+} = process.env;
+
+if (!CLOUDFLARE_API_KEY || !CLOUDFLARE_ACCOUNT_ID || !CLOUDFLARE_ZONE_ID || !CLOUDFLARE_ROOT_DOMAIN || !ADMIN_PASSWORD) {
+  console.error('⚠️ Missing required environment variables!');
+  process.exit(1);
+}
 
 // --- Middleware ---
 app.use(cors());
 app.use(express.json());
 
-// Header untuk Cloudflare API
-const cloudflareHeaders = {
-    'Authorization': `Bearer ${CLOUDFLARE_API_KEY}`,
-    'X-Auth-Email': CLOUDFLARE_API_EMAIL,
-    'X-Auth-Key': CLOUDFLARE_API_KEY, // Ini adalah kunci API global atau Origin CA Key
-    'Content-Type': 'application/json'
+// Header standarisasi untuk Cloudflare API
+const cfHeaders = {
+  'Authorization': `Bearer ${CLOUDFLARE_API_KEY}`,
+  'Content-Type': 'application/json'
 };
 
-/**
- * Fungsi pembantu untuk memparsing respons JSON dari fetch.
- * Ini menangani kasus di mana respons bukan JSON yang valid.
- */
-async function parseJsonResponse(response) {
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-        return response.json();
-    } else {
-        const text = await response.text();
-        console.warn('Respons non-JSON yang tidak diharapkan dari Cloudflare:', text);
-        throw new Error('Menerima respons non-JSON dari Cloudflare API.');
-    }
+// Helper: parse JSON or throw
+async function parseJson(res) {
+  const ct = res.headers.get('content-type') || '';
+  if (ct.includes('application/json')) {
+    return res.json();
+  }
+  const txt = await res.text();
+  throw new Error(`Expected JSON, got: ${txt}`);
 }
 
-// --- Rute API ---
+// Base URL Cloudflare Workers Domains
+const CF_BASE = `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/domains`;
 
 /**
- * @route GET /api/subdomains
- * @description Mendapatkan daftar subdomain yang terdaftar di Cloudflare Workers.
+ * GET /api/subdomains
+ * List subdomains yang terdaftar
  */
 app.get('/api/subdomains', async (req, res) => {
-    const url = `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/domains`;
-    try {
-        const cfRes = await fetch(url, { headers: cloudflareHeaders });
-        const data = await parseJsonResponse(cfRes);
+  try {
+    const response = await fetch(CF_BASE, { headers: cfHeaders });
+    const data = await parseJson(response);
 
-        if (cfRes.ok) {
-            const filteredDomains = data.result
-                .filter(domain => domain.service === CLOUDFLARE_SERVICE_NAME && domain.hostname.endsWith(CLOUDFLARE_ROOT_DOMAIN))
-                .map(domain => ({
-                    hostname: domain.hostname,
-                    id: domain.id
-                }));
-            res.json({ success: true, subdomains: filteredDomains });
-        } else {
-            console.error('Error Cloudflare API (mendapatkan subdomain):', data.errors || 'Error tidak diketahui');
-            res.status(cfRes.status).json({ success: false, message: data.errors?.[0]?.message || 'Gagal mengambil subdomain dari Cloudflare.' });
-        }
-    } catch (error) {
-        console.error('Error saat mengambil subdomain:', error.message);
-        res.status(500).json({ success: false, message: `Internal server error: ${error.message}` });
+    if (!response.ok) {
+      throw new Error(data.errors?.[0]?.message || 'Gagal fetch subdomains');
     }
+
+    const subdomains = data.result
+      .filter(d => d.service === CLOUDFLARE_SERVICE_NAME && d.hostname.endsWith(CLOUDFLARE_ROOT_DOMAIN))
+      .map(d => ({ id: d.id, hostname: d.hostname }));
+
+    res.json({ success: true, subdomains });
+  } catch (err) {
+    console.error('GET /subdomains error:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 /**
- * @route POST /api/subdomains
- * @description Menambahkan subdomain baru ke Cloudflare Workers.
+ * POST /api/subdomains
+ * Tambah subdomain baru
+ * Body: { subdomainPart }
  */
 app.post('/api/subdomains', async (req, res) => {
-    const { subdomainPart } = req.body;
+  const { subdomainPart } = req.body;
+  if (!subdomainPart?.trim()) {
+    return res.status(400).json({ success: false, message: 'subdomainPart wajib diisi.' });
+  }
+  if (!/^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$/.test(subdomainPart)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Subdomain hanya huruf, angka, hyphen, dan tidak boleh diawali/diakhiri hyphen.'
+    });
+  }
 
-    if (!subdomainPart || subdomainPart.trim() === '') {
-        return res.status(400).json({ success: false, message: 'Bagian subdomain tidak boleh kosong.' });
-    }
-    // Validasi format subdomain: hanya huruf, angka, dan hyphen; tidak diawali/diakhiri hyphen
-    if (!/^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$/.test(subdomainPart)) {
-        return res.status(400).json({ success: false, message: 'Subdomain hanya boleh berisi huruf, angka, dan tanda hubung, serta tidak boleh diawali atau diakhiri dengan tanda hubung.' });
-    }
+  const hostname = `${subdomainPart.toLowerCase()}.${CLOUDFLARE_ROOT_DOMAIN}`;
+  try {
+    // Cek eksistensi
+    const checkRes = await fetch(CF_BASE, { headers: cfHeaders });
+    const checkData = await parseJson(checkRes);
+    if (!checkRes.ok) throw new Error(checkData.errors?.[0]?.message);
 
-    const fullDomain = `${subdomainPart.toLowerCase()}.${CLOUDFLARE_ROOT_DOMAIN}`;
-
-    // Cek apakah domain sudah terdaftar di Cloudflare sebelum mencoba menambahkannya
-    try {
-        const existingDomainsRes = await fetch(`https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/domains`, { headers: cloudflareHeaders });
-        const existingDomainsData = await parseJsonResponse(existingDomainsRes);
-
-        if (existingDomainsRes.ok) {
-            if (existingDomainsData.result && existingDomainsData.result.some(d => d.hostname === fullDomain)) {
-                return res.status(409).json({ success: false, message: `Domain '${fullDomain}' sudah terdaftar.` });
-            }
-        } else {
-            console.error('Error Cloudflare API (memeriksa domain yang ada):', existingDomainsData.errors || 'Error tidak diketahui');
-            return res.status(existingDomainsRes.status).json({ success: false, message: existingDomainsData.errors?.[0]?.message || 'Gagal memeriksa subdomain yang ada di Cloudflare.' });
-        }
-    } catch (error) {
-        console.error('Error memeriksa domain yang ada:', error.message);
-        return res.status(500).json({ success: false, message: `Internal server error selama pemeriksaan domain: ${error.message}` });
+    if (checkData.result.some(d => d.hostname === hostname)) {
+      return res.status(409).json({ success: false, message: `${hostname} sudah ada.` });
     }
 
-    const url = `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/domains`;
-    try {
-        const cfRes = await fetch(url, {
-            method: 'PUT', // Menggunakan PUT untuk menambahkan/memperbarui worker domain
-            headers: cloudflareHeaders,
-            body: JSON.stringify({
-                environment: 'production',
-                hostname: fullDomain,
-                service: CLOUDFLARE_SERVICE_NAME,
-                zone_id: CLOUDFLARE_ZONE_ID,
-            })
-        });
+    // Tambah
+    const addRes = await fetch(CF_BASE, {
+      method: 'PUT',
+      headers: cfHeaders,
+      body: JSON.stringify({
+        environment: 'production',
+        hostname,
+        service: CLOUDFLARE_SERVICE_NAME,
+        zone_id: CLOUDFLARE_ZONE_ID
+      })
+    });
+    const addData = await parseJson(addRes);
+    if (!addRes.ok) throw new Error(addData.errors?.[0]?.message);
 
-        const data = await parseJsonResponse(cfRes);
-
-        if (cfRes.ok) {
-            res.status(201).json({ success: true, message: `Subdomain '${fullDomain}' berhasil ditambahkan!`, data: data.result });
-        } else {
-            console.error('Error Cloudflare API (menambahkan subdomain):', data.errors || 'Error tidak diketahui');
-            res.status(cfRes.status).json({ success: false, message: data.errors?.[0]?.message || 'Gagal menambahkan subdomain.' });
-        }
-    } catch (error) {
-        console.error('Error menambahkan subdomain:', error.message);
-        res.status(500).json({ success: false, message: `Internal server error: ${error.message}` });
-    }
+    res.status(201).json({ success: true, message: `${hostname} berhasil ditambahkan!`, data: addData.result });
+  } catch (err) {
+    console.error('POST /subdomains error:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 /**
- * @route DELETE /api/subdomains/:id
- * @description Menghapus subdomain dari Cloudflare Workers. Membutuhkan verifikasi password.
+ * DELETE /api/subdomains/:id
+ * Hapus subdomain berdasarkan ID, with admin password
+ * Body: { password }
  */
 app.delete('/api/subdomains/:id', async (req, res) => {
-    const { id } = req.params;
-    const { password } = req.body;
+  const { id } = req.params;
+  const { password } = req.body;
+  if (password !== ADMIN_PASSWORD) {
+    return res.status(401).json({ success: false, message: 'Password salah.' });
+  }
 
-    // Verifikasi password admin
-    if (password !== ADMIN_PASSWORD) {
-        return res.status(401).json({ success: false, message: 'Kata sandi salah.' });
-    }
+  try {
+    const delRes = await fetch(`${CF_BASE}/${id}`, {
+      method: 'DELETE',
+      headers: cfHeaders
+    });
 
-    const url = `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/domains/${id}`;
+    // Coba parse JSON, tapi jika non-JSON dan status ok → sukses
+    let delData;
     try {
-        const cfRes = await fetch(url, {
-            method: 'DELETE',
-            headers: cloudflareHeaders,
-        });
-
-        let data;
-        try {
-            data = await parseJsonResponse(cfRes);
-        } catch (jsonError) {
-            // Jika parsing JSON gagal, tapi status OK, berarti mungkin sukses dengan respons kosong/aneh
-            if (cfRes.ok) {
-                console.warn(`Cloudflare API DELETE: Berhasil tetapi menerima respons non-JSON atau kosong untuk ID ${id}. Status: ${cfRes.status}`);
-                return res.json({ success: true, message: 'Subdomain berhasil dihapus (respons Cloudflare tidak biasa tetapi operasi kemungkinan berhasil).' });
-            }
-            throw jsonError; // Lempar error JSON ke blok catch utama
-        }
-
-        if (cfRes.ok) {
-            res.json({ success: true, message: 'Subdomain berhasil dihapus!' });
-        } else {
-            console.error('Error Cloudflare API (menghapus subdomain):', data.errors || 'Error tidak diketahui');
-            const errorMessage = data.errors?.[0]?.message || 'Gagal menghapus subdomain dari Cloudflare.';
-            res.status(cfRes.status).json({ success: false, message: errorMessage });
-        }
-    } catch (error) {
-        console.error(`Error menghapus subdomain ID ${id}:`, error.message);
-        if (error.message.includes("Origin '") && error.message.includes("' not found.")) {
-             res.status(404).json({ success: false, message: `Subdomain dengan ID '${id}' tidak ditemukan di Cloudflare.` });
-        } else {
-            res.status(500).json({ success: false, message: `Internal server error: ${error.message}` });
-        }
+      delData = await parseJson(delRes);
+    } catch {
+      if (delRes.ok) {
+        return res.json({ success: true, message: 'Subdomain berhasil dihapus!' });
+      }
+      throw new Error('Non-JSON response dari Cloudflare');
     }
+
+    if (!delRes.ok) {
+      throw new Error(delData.errors?.[0]?.message || 'Gagal menghapus subdomain');
+    }
+    res.json({ success: true, message: 'Subdomain berhasil dihapus!' });
+  } catch (err) {
+    console.error(`DELETE /subdomains/${id} error:`, err.message);
+    const isNotFound = /not found/i.test(err.message);
+    res.status(isNotFound ? 404 : 500).json({ success: false, message: err.message });
+  }
 });
 
-// Ekspor aplikasi Express untuk Vercel sebagai fungsi serverless
+// Ekspor untuk Vercel
 module.exports = app;
