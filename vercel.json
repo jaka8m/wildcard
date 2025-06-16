@@ -1,18 +1,14 @@
 {
   "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
-    },
+    { "source": "/api/(.*)", "destination": "/api/" },
+    { "source": "/(.*)", "destination": "/public/$1" }
+  ],
+  "headers": [
     {
       "source": "/(.*)",
-      "destination": "/templates/index.html"
-    }
-  ],
-  "builds": [
-    {
-      "src": "api/index.js",
-      "use": "@vercel/node"
+      "headers": [
+        { "key": "Cache-Control", "value": "s-maxage=1, stale-while-revalidate" }
+      ]
     }
   ]
 }
