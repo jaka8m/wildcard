@@ -1,15 +1,10 @@
 // api/index.js
 const express = require('express');
 const cors = require('cors');
-// 'fetch' sudah tersedia secara global di Node.js 18+ (yang digunakan Vercel)
-// Jika Anda ingin mendukung Node.js versi lama, Anda bisa menginstal 'node-fetch'
-// dan mengimpornya: const fetch = require('node-fetch');
 
 const app = express();
 
 // --- Ambil Kredensial dari Variabel Lingkungan ---
-// INI SANGAT PENTING UNTUK KEAMANAN.
-// Anda HARUS menyetel variabel-variabel ini di dashboard Vercel Anda.
 const CLOUDFLARE_API_KEY = process.env.CLOUDFLARE_API_KEY;
 const CLOUDFLARE_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
 const CLOUDFLARE_ZONE_ID = process.env.CLOUDFLARE_ZONE_ID;
@@ -23,17 +18,15 @@ app.use(cors());
 app.use(express.json());
 
 // Headers untuk Cloudflare API
-// Memastikan semua variabel lingkungan yang diperlukan ada sebelum menggunakannya
 const cloudflareHeaders = {
     'Authorization': `Bearer ${CLOUDFLARE_API_KEY}`,
     'X-Auth-Email': CLOUDFLARE_API_EMAIL,
-    'X-Auth-Key': CLOUDFLARE_API_KEY, // Ini umumnya adalah kunci API global atau Origin CA Key
+    'X-Auth-Key': CLOUDFLARE_API_KEY,
     'Content-Type': 'application/json'
 };
 
 /**
  * Fungsi pembantu untuk memparsing respons JSON dari fetch.
- * Ini menangani kasus di mana respons bukan JSON yang valid atau kosong.
  */
 async function parseJsonResponse(response) {
     const contentType = response.headers.get('content-type');
@@ -46,15 +39,28 @@ async function parseJsonResponse(response) {
     }
 }
 
-// --- Rute API ---
+// --- Rute API Baru untuk Root Domain ---
+/**
+ * @route GET /api/root-domain
+ * @description Mendapatkan root domain untuk ditampilkan di frontend.
+ */
+app.get('/api/root-domain', (req, res) => {
+    if (!CLOUDFLARE_ROOT_DOMAIN) {
+        return res.status(500).json({ success: false, message: 'Server configuration error: CLOUDFLARE_ROOT_DOMAIN is not set.' });
+    }
+    res.json({ success: true, rootDomain: CLOUDFLARE_ROOT_DOMAIN });
+});
+
+
+// --- Rute API Lainnya (Sama seperti sebelumnya) ---
 
 /**
  * @route GET /api/subdomains
  * @description Mendapatkan daftar subdomain yang terdaftar di Cloudflare Workers.
  */
 app.get('/api/subdomains', async (req, res) => {
-    if (!CLOUDFLARE_ACCOUNT_ID || !CLOUDFLARE_API_KEY || !CLOUDFLARE_API_EMAIL) {
-        return res.status(500).json({ success: false, message: 'Server configuration error: Cloudflare API credentials are not set.' });
+    if (!CLOUDFLARE_ACCOUNT_ID || !CLOUDFLARE_API_KEY || !CLOUDFLARE_API_EMAIL || !CLOUDFLARE_SERVICE_NAME || !CLOUDFLARE_ROOT_DOMAIN) {
+        return res.status(500).json({ success: false, message: 'Server configuration error: Cloudflare API credentials or domain info not set.' });
     }
 
     const url = `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/domains`;
