@@ -1,84 +1,76 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Subdomain Manager</title>
+    <title>Wildcard Manager</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Custom CSS goes here */
-
-        /* Define custom colors for Tailwind's JIT mode or if you prefer direct CSS */
         :root {
             --primary-dark: #1a202c;
             --container-dark: #2d3748;
             --card-dark: #4a5568;
-            --border-dark: #4a5568;
-            --gray-input: #6a7380; /* A slightly lighter gray for inputs within dark theme */
-            --purple-header: #6b46c1; /* A distinct purple for headers */
-            --purple-btn: #805ad5; /* A slightly lighter purple for buttons */
-            --light-text: #e2e8f0; /* Light text color for dark mode */
-            --dark-text: #a0aec0; /* A darker text color, possibly for footer or secondary info */
+            --border-dark: #64748b; /* Adjusted border color for better contrast */
+            --gray-input: #6a7380;
+            --purple-header: #6b46c1;
+            --purple-btn: #805ad5;
+            --light-text: #e2e8f0;
+            --dark-text: #a0aec0;
             --danger-red: #e53e3e;
             --success-green: #38a169;
-            --active-green: #48bb78; /* A specific green for "Active" status */
+            --active-green: #48bb78;
 
-            /* Light mode variables (to be toggled by JS) */
             --primary-light: #f7fafc;
             --container-light: #ffffff;
             --card-light: #edf2f7;
             --border-light: #e2e8f0;
             --gray-input-light: #e2e8f0;
-            --text-dark-mode: #2d3748; /* Dark text for light mode */
-            --gray-btn-light: #a0aec0; /* Example for light mode button */
+            --text-dark-mode: #2d3748;
+            --gray-btn-light: #a0aec0;
         }
 
-        /* Dark Theme (Default) */
         .dark .bg-primary-dark { background-color: var(--primary-dark); }
         .dark .bg-container-dark { background-color: var(--container-dark); }
         .dark .bg-card-dark { background-color: var(--card-dark); }
         .dark .border-border-dark { border-color: var(--border-dark); }
         .dark .bg-gray-input { background-color: var(--gray-input); }
         .dark .text-light-text { color: var(--light-text); }
-        .dark .text-dark-text { color: var(--dark-text); } /* For footer */
+        .dark .text-dark-text { color: var(--dark-text); }
 
-        /* Light Theme */
         .light .bg-primary-dark { background-color: var(--primary-light); }
         .light .bg-container-dark { background-color: var(--container-light); }
         .light .bg-card-dark { background-color: var(--card-light); }
         .light .border-border-dark { border-color: var(--border-light); }
         .light .bg-gray-input { background-color: var(--gray-input-light); color: var(--text-dark-mode); }
         .light .text-light-text { color: var(--text-dark-mode); }
-        .light .text-dark-text { color: var(--text-dark-mode); } /* For footer */
-        .light .text-white { color: var(--text-dark-mode); } /* Override text-white in light mode */
+        .light .text-dark-text { color: var(--text-dark-mode); }
+        .light .text-white { color: var(--text-dark-mode); }
         .light .bg-gray-700 { background-color: var(--gray-btn-light); color: var(--text-dark-mode); }
-        .light .hover\:bg-gray-600:hover { background-color: #cbd5e0; } /* Lighter hover for light mode gray buttons */
+        .light .hover\:bg-gray-600:hover { background-color: #cbd5e0; }
         .light .border-gray-600 { border-color: var(--border-light); }
-        .light .bg-gray-600 { background-color: var(--gray-input-light); } /* Disabled input background */
-        .light .text-gray-300 { color: #4a5568; } /* Disabled input text color */
+        .light .bg-gray-600 { background-color: var(--gray-input-light); }
+        .light .text-gray-300 { color: #4a5568; }
 
-        /* Universal colors (not theme-dependent) */
         .bg-purple-header { background-color: var(--purple-header); }
         .bg-purple-btn { background-color: var(--purple-btn); }
         .hover\:bg-purple-header:hover { background-color: var(--purple-header); }
         .bg-danger-red { background-color: var(--danger-red); }
-        .hover\:bg-red-700:hover { background-color: #c53030; } /* Darker red for hover */
+        .hover\:bg-red-700:hover { background-color: #c53030; }
         .bg-success-green { background-color: var(--success-green); }
         .text-active-green { color: var(--active-green); }
 
-        /* Custom animation for "Copied!" message */
         .copy-success {
             position: absolute;
-            background-color: #4CAF50; /* Green background */
+            background-color: #4CAF50;
             color: white;
             padding: 4px 8px;
             border-radius: 4px;
-            font-size: 0.75rem; /* text-sm */
+            font-size: 0.75rem;
             opacity: 0;
             animation: fadeAndSlideUp 1.5s forwards;
-            white-space: nowrap; /* Prevent text wrapping */
-            z-index: 10; /* Ensure it's above other elements */
+            white-space: nowrap;
+            z-index: 10;
         }
 
         @keyframes fadeAndSlideUp {
@@ -88,7 +80,7 @@
             }
             20% {
                 opacity: 1;
-                transform: translateY(-10px); /* Move up */
+                transform: translateY(-10px);
             }
             80% {
                 opacity: 1;
@@ -96,27 +88,35 @@
             }
             100% {
                 opacity: 0;
-                transform: translateY(-20px); /* Continue moving up as it fades */
+                transform: translateY(-20px);
             }
         }
 
-        /* Table specific styles for better appearance */
-        .table th, .table td {
-            vertical-align: middle; /* Align content vertically in the middle */
-        }
-        
-        /* Ensure specific width for 'No.' column */
-        .w-no {
-            width: 50px; /* Adjust as needed */
+        .table {
+            border: 1px solid var(--border-dark); /* Add overall border to the table */
         }
 
-        /* Focus outline for inputs */
+        .table th, .table td {
+            vertical-align: middle;
+            border: 1px solid var(--border-dark); /* Apply border to all sides of cells */
+            /* Remove specific border-right/border-b classes as they are now covered by 'border' */
+        }
+        
+        /* Ensure the first-child and last-child borders are handled by the general 'border' rule */
+        .table th:first-child,
+        .table td:first-child {
+            border-left: 1px solid var(--border-dark); /* Explicitly add left border to the first column */
+        }
+
+        .w-no {
+            width: 50px;
+        }
+
         input:focus, select:focus, button:focus {
-            outline: 2px solid var(--purple-btn); /* Purple outline on focus */
+            outline: 2px solid var(--purple-btn);
             outline-offset: 2px;
         }
 
-        /* Styles for disabled buttons/elements */
         button:disabled {
             cursor: not-allowed;
             opacity: 0.6;
@@ -128,7 +128,7 @@
         <header class="flex flex-col md:flex-row items-start md:items-center justify-between pb-4 border-b border-border-dark mb-4">
             <div class="flex items-center mb-2 md:mb-0">
                 <i class="fas fa-home text-xl text-gray-400 mr-2"></i>
-                <h1 class="text-xl md:text-2xl font-bold text-white">Subdomain Manager</h1>
+                <h1 class="text-xl md:text-2xl font-bold text-white">Wildcard Manager</h1>
             </div>
             <button id="themeToggle" class="py-2 px-4 rounded-full bg-gray-700 text-white text-sm flex items-center justify-center hover:bg-gray-600 transition duration-300 shadow-md">
                 <i class="fas fa-sun mr-2 text-yellow-400"></i>
@@ -140,28 +140,30 @@
         <section class="card bg-card-dark rounded-lg mb-4 overflow-hidden">
             <div class="bg-purple-header p-3 flex items-center text-white">
                 <i class="fas fa-plus-circle text-lg mr-2"></i>
-                <h2 class="text-lg font-semibold">Add Subdomain</h2>
+                <h2 class="text-lg font-semibold">Add Wildcard</h2>
             </div>
             <div class="card-body p-4">
-                <div class="mb-4">
-                    <label class="block text-sm font-medium mb-1">Domain:</label>
-                    <input type="text" value="joss.krikkrik.tech" disabled class="w-full p-2 border border-gray-600 rounded bg-gray-600 text-gray-300 cursor-not-allowed text-sm">
+                <div class="mb-4 flex items-center">
+                    <label class="fas fa-globe text-xs mr-1"><strong> Domain :</strong></label>
+                    <span class="text-xs text-gray-300">joss.krikkrik.tech</span>
                 </div>
                 <div class="mb-4">
                     <label for="subdomainInput" class="block text-sm font-medium mb-1">Subdomain</label>
-                    <div class="flex flex-col sm:flex-row">
-                        <input type="text" id="subdomainInput" placeholder="Enter subdomain (e.g., blog)" class="flex-grow p-2 border border-gray-600 rounded-t-md sm:rounded-l-md sm:rounded-t-none bg-gray-input text-white outline-none text-sm mb-2 sm:mb-0">
-                        <span class="bg-gray-700 text-white p-2 rounded-b-md sm:rounded-r-md sm:rounded-b-none whitespace-nowrap flex items-center justify-center text-sm">.joss.krikkrik.tech</span>
+                    <div class="flex">
+                        <input type="text" id="subdomainInput" placeholder="Enter subdomain (e.g., blog)" class="w-2/3 p-2 border border-gray-600 rounded-l bg-gray-input text-white outline-none text-xs">
+                        <span class="bg-gray-700 text-white p-2 rounded-r whitespace-nowrap flex items-center justify-center text-xs">.joss.krikkrik.tech</span>
                     </div>
                 </div>
-                <button id="addSubdomainBtn" class="w-full py-2 px-4 rounded bg-purple-btn text-white text-base hover:bg-purple-header transition duration-300">Add Subdomain</button>
+                <button id="addSubdomainBtn" class="w-full py-2 px-4 rounded bg-purple-btn text-white text-sm hover:bg-purple-header transition duration-300">
+                    <i class="fas fa-save me-2"></i> Add Wildcard
+                </button>
             </div>
         </section>
 
         <section class="card bg-card-dark rounded-lg mb-4 overflow-hidden">
             <div class="bg-purple-header p-3 flex items-center text-white">
                 <i class="fas fa-list text-lg mr-2"></i>
-                <h2 class="text-lg font-semibold">Subdomain List</h2>
+                <h2 class="text-lg font-semibold">Wildcard List</h2>
             </div>
             <div class="card-body p-4">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
@@ -176,27 +178,28 @@
                     </div>
                     <div class="flex items-center text-sm w-full sm:w-auto">
                         <span>Search:</span>
-                        <input type="text" id="searchSubdomain" class="ml-2 p-1 border border-gray-600 rounded bg-gray-input text-white outline-none w-full sm:w-auto">
+                        <input type="text" id="searchSubdomain" class="ml-2 p-1 border border-gray-600 rounded bg-gray-input text-white outline-none w-full sm:w-auto" placeholder="Search Wildcard...">
                     </div>
                 </div>
                 <div class="overflow-x-auto mb-4">
                     <table class="w-full border-collapse min-w-[500px] text-sm table">
                         <thead>
                             <tr class="bg-gray-700 text-white">
-                                <th class="p-3 text-left border-b border-gray-600 whitespace-nowrap w-no">No.</th>
-                                <th class="p-3 text-left border-b border-gray-600 whitespace-nowrap">Subdomain</th>
-                                <th class="p-3 text-left border-b border-gray-600 whitespace-nowrap">Status</th>
-                                <th class="p-3 text-left border-b border-gray-600 whitespace-nowrap">Actions</th>
+                                <th class="p-3 text-left whitespace-nowrap w-no">No.</th>
+                                <th class="p-3 text-left whitespace-nowrap">Wildcard</th>
+                                <th class="p-3 text-left whitespace-nowrap">Status</th>
+                                <th class="p-3 text-left whitespace-nowrap">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="subdomainTableBody">
+                            <tr><td colspan="4" class="p-3 text-center text-gray-400">Loading subdomains...</td></tr>
                         </tbody>
                     </table>
                 </div>
                 <div class="flex flex-col sm:flex-row justify-between items-center text-sm mt-4 gap-3">
                     <span id="paginationText">Showing 0 to 0 of 0 entries</span>
                     <div class="flex gap-2">
-                        <button id="prevPageBtn" class="py-2 px-3 rounded bg-gray-700 text-white text-sm hover:bg-gray-600 transition duration-300">Previous</button>
+                        <button id="prevPageBtn" class="py-2 px-3 rounded bg-gray-700 text-white text-sm hover:bg-gray-600 transition duration-300">Prev</button>
                         <div id="paginationNumbers" class="flex gap-2">
                         </div>
                         <button id="nextPageBtn" class="py-2 px-3 rounded bg-gray-700 text-white text-sm hover:bg-gray-600 transition duration-300">Next</button>
@@ -223,7 +226,7 @@
                 </div>
                 <div class="mb-4">
                     <p class="mb-2 text-sm">You are about to delete '<span id="domainToDelete"></span>'.</p>
-                    <p class="mb-3 text-sm">Please enter password to confirm:</p>
+                    <p class="mb-3 text-sm">Enter password to confirm:</p>
                     <input type="password" id="deletePassword" placeholder="Enter password" class="w-full p-2 border border-gray-600 rounded bg-gray-input text-white outline-none text-sm">
                 </div>
                 <div class="flex justify-end gap-3 flex-wrap">
@@ -235,7 +238,7 @@
     </div>
 
     <footer class="text-center mt-6 pt-4 border-t border-border-dark text-dark-text text-sm">
-        <p class="mb-2">&copy; 2025 Subdomain Manager <span class="text-red-500">❤️</span> by Geo Project</p>
+        <p class="mb-2">&copy; 2025 Wildcard Manager <span class="text-red-500">❤️</span> by Geo Project</p>
         <div class="social-icons">
             <a href="#" class="text-gray-400 text-lg mx-2 hover:text-white transition duration-300"><i class="fab fa-facebook"></i></a>
             <a href="#" class="text-gray-400 text-lg mx-2 hover:text-white transition duration-300"><i class="fab fa-instagram"></i></a>
@@ -243,11 +246,8 @@
     </footer>
 
     <script>
-        // URL dasar untuk backend API Anda. Karena frontend dan backend di server yang sama,
-        // kita bisa menggunakan path relatif atau localhost dengan port yang sama.
-        const BASE_API_URL = 'http://localhost:3000/api'; // Sesuaikan port jika Anda mengubahnya di app.js
+        const BASE_API_URL = 'http://localhost:3000/api';
 
-        // UI Elements
         const subdomainInput = document.getElementById('subdomainInput');
         const addSubdomainBtn = document.getElementById('addSubdomainBtn');
         const subdomainTableBody = document.getElementById('subdomainTableBody');
@@ -260,7 +260,7 @@
         const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
         const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
         const domainToDeleteSpan = document.getElementById('domainToDelete');
-        const deletePasswordInput = document.getElementById('deletePassword');
+        const deletePasswordInput = document = document.getElementById('deletePassword');
         const entriesPerPageSelect = document.getElementById('entriesPerPage');
         const searchSubdomainInput = document.getElementById('searchSubdomain');
         const paginationTextSpan = document.getElementById('paginationText');
@@ -271,51 +271,36 @@
         const themeText = document.getElementById('themeText');
 
         let currentDomainToDelete = null;
-        let allSubdomains = []; // Array to hold all fetched subdomains
+        let allSubdomains = [];
         let currentPage = 1;
         let entriesPerPage = parseInt(entriesPerPageSelect.value);
 
-        /**
-         * Toggles between light and dark themes.
-         */
         function toggleTheme() {
             const html = document.documentElement;
             if (html.classList.contains('dark')) {
                 html.classList.remove('dark');
                 html.classList.add('light');
                 localStorage.setItem('theme', 'light');
-                themeText.textContent = 'Dark Mode';
                 themeToggle.innerHTML = '<i class="fas fa-moon mr-2 text-blue-300"></i><span>Dark Mode</span>';
             } else {
                 html.classList.remove('light');
                 html.classList.add('dark');
                 localStorage.setItem('theme', 'dark');
-                themeText.textContent = 'Light Mode';
                 themeToggle.innerHTML = '<i class="fas fa-sun mr-2 text-yellow-400"></i><span>Light Mode</span>';
             }
         }
 
-        /**
-         * Applies the saved theme preference on page load.
-         */
         function applySavedTheme() {
-            const savedTheme = localStorage.getItem('theme') || 'dark'; // Default to dark if no preference
+            const savedTheme = localStorage.getItem('theme') || 'dark';
             const html = document.documentElement;
             html.classList.add(savedTheme);
             if (savedTheme === 'light') {
-                themeText.textContent = 'Dark Mode';
                 themeToggle.innerHTML = '<i class="fas fa-moon mr-2 text-blue-300"></i><span>Dark Mode</span>';
             } else {
-                themeText.textContent = 'Light Mode';
                 themeToggle.innerHTML = '<i class="fas fa-sun mr-2 text-yellow-400"></i><span>Light Mode</span>';
             }
         }
 
-        /**
-         * Displays a notification message to the user.
-         * @param {string} message - The message to display.
-         * @param {'error'|'success'} type - The type of notification (e.g., 'error', 'success').
-         */
         function showNotification(message, type) {
             errorMessageDiv.classList.add('hidden');
             successMessageDiv.classList.add('hidden');
@@ -334,30 +319,23 @@
             }, 5000);
         }
 
-        /**
-         * Copies text to clipboard and shows a "Copied!" animation.
-         * @param {string} text - The text to copy.
-         * @param {HTMLElement} element - The element next to which the "Copied!" message will appear.
-         */
         function copyToClipboard(text, element) {
             navigator.clipboard.writeText(text).then(() => {
                 const successSpan = document.createElement('span');
                 successSpan.className = 'copy-success';
                 successSpan.textContent = 'Copied!';
                 
-                // Position relative to the parent table cell, not the text span itself
                 const parentTd = element.closest('td');
                 if (parentTd && window.getComputedStyle(parentTd).position === 'static') {
                     parentTd.style.position = 'relative';
                 }
                 parentTd.appendChild(successSpan);
 
-                // Position the "Copied!" message (centered relative to element)
                 const rect = element.getBoundingClientRect();
-                const parentRect = parentTd.getBoundingClientRect(); // Get parent TD position
+                const parentRect = parentTd.getBoundingClientRect();
                 
-                successSpan.style.top = `${rect.top - parentRect.top - successSpan.offsetHeight - 5}px`; // Above the element
-                successSpan.style.left = `${rect.left - parentRect.left + (rect.width / 2) - (successSpan.offsetWidth / 2)}px`; // Centered horizontally
+                successSpan.style.top = `${rect.top - parentRect.top - successSpan.offsetHeight - 5}px`;
+                successSpan.style.left = `${rect.left - parentRect.left + (rect.width / 2) - (successSpan.offsetWidth / 2)}px`;
 
                 setTimeout(() => {
                     successSpan.remove();
@@ -368,16 +346,12 @@
             });
         }
 
-        /**
-         * Renders the subdomains to the table based on current filters and pagination.
-         * @param {Array<Object>} domainsToRender - An array of subdomain objects to render.
-         */
         function renderSubdomains(domainsToRender) {
-            subdomainTableBody.innerHTML = ''; // Clear existing rows
+            subdomainTableBody.innerHTML = '';
 
             if (domainsToRender.length === 0) {
-                subdomainTableBody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-400">No matching subdomains found.</td></tr>';
-                updatePagination(0); // Update pagination for 0 entries
+                subdomainTableBody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-400">No subdomains found.</td></tr>';
+                updatePagination(0);
                 return;
             }
 
@@ -388,21 +362,24 @@
             paginatedDomains.forEach((domain, index) => {
                 const row = subdomainTableBody.insertRow();
                 row.className = "hover:bg-gray-700 transition duration-150";
-                const displayIndex = startIndex + index + 1; // Calculate actual number for display
+                const displayIndex = startIndex + index + 1;
 
                 row.innerHTML = `
-                    <td class="p-3 border-b border-gray-600 whitespace-nowrap w-no">${displayIndex}</td>
-                    <td class="p-3 border-b border-gray-600 whitespace-nowrap">
+                    <td class="p-3 whitespace-nowrap w-no">
+                        ${displayIndex}
+                    </td>
+                    <td class="p-3 whitespace-nowrap">
                         <span class="subdomain-text cursor-pointer hover:underline" data-full-domain="${domain.hostname}">${domain.hostname}</span>
                     </td>
-                    <td class="p-3 border-b border-gray-600 whitespace-nowrap"><span class="text-active-green font-bold">Active</span></td>
-                    <td class="p-3 border-b border-gray-600 whitespace-nowrap">
+                    <td class="p-3 whitespace-nowrap">
+                        <span class="text-active-green font-bold">Active</span>
+                    </td>
+                    <td class="p-3 whitespace-nowrap">
                         <button class="py-1 px-3 rounded bg-danger-red text-white text-sm hover:bg-red-700 transition duration-300 delete-btn" data-domain-id="${domain.id}" data-domain-name="${domain.hostname}">Delete</button>
                     </td>
                 `;
             });
 
-            // Add event listeners for copying after rendering
             document.querySelectorAll('.subdomain-text').forEach(element => {
                 element.addEventListener('click', (event) => {
                     const fullDomain = event.target.dataset.fullDomain;
@@ -413,10 +390,6 @@
             updatePagination(domainsToRender.length);
         }
 
-        /**
-         * Updates the pagination controls and text.
-         * @param {number} totalEntries - The total number of filtered entries.
-         */
         function updatePagination(totalEntries) {
             const totalPages = Math.ceil(totalEntries / entriesPerPage);
             
@@ -445,9 +418,6 @@
             nextPageBtn.classList.toggle('cursor-not-allowed', nextPageBtn.disabled);
         }
 
-        /**
-         * Fetches subdomains from the API.
-         */
         async function loadSubdomains() {
             showNotification('Loading subdomains...', 'success');
             try {
@@ -460,22 +430,19 @@
 
                 if (data.success) {
                     allSubdomains = data.subdomains;
-                    showNotification('Subdomains loaded successfully.', 'success');
+                    showNotification('Subdomains loaded successfully!', 'success');
                 } else {
                     showNotification(data.message || 'Failed to load subdomains.', 'error');
                 }
             } catch (error) {
                 console.error('Error fetching subdomains from backend:', error);
-                showNotification(`Error: ${error.message}`, 'error'); // Display more specific error message
-                allSubdomains = []; // Clear data on error
+                showNotification(`Error: ${error.message}`, 'error');
+                allSubdomains = [];
             } finally {
-                applyFiltersAndRender(); // Always try to render, even if empty or error
+                applyFiltersAndRender();
             }
         }
 
-        /**
-         * Applies search filters and re-renders the subdomain table.
-         */
         function applyFiltersAndRender() {
             const searchTerm = searchSubdomainInput.value.toLowerCase().trim();
             const filteredDomains = allSubdomains.filter(domain =>
@@ -483,8 +450,6 @@
             );
             renderSubdomains(filteredDomains);
         }
-
-        // --- Event Listeners ---
 
         themeToggle.addEventListener('click', toggleTheme);
 
@@ -494,7 +459,6 @@
                 showNotification('Subdomain cannot be empty.', 'error');
                 return;
             }
-            // Basic validation for subdomain format
             if (!/^[a-zA-Z0-9-]+$/.test(subdomainPart) || subdomainPart.startsWith('-') || subdomainPart.endsWith('-')) {
                 showNotification('Subdomain can only contain letters, numbers, and hyphens, and cannot start or end with a hyphen.', 'error');
                 return;
@@ -510,18 +474,18 @@
                     body: JSON.stringify({ subdomainPart }),
                 });
 
-                const result = await response.json(); // Always parse JSON to get message
+                const result = await response.json();
 
-                if (!response.ok) { // Check response status first
-                    throw new Error(result.message || 'Failed to add subdomain due to server error.');
+                if (!response.ok) {
+                    throw new Error(result.message || 'Failed to Add Wildcard due to server error.');
                 }
                 
                 if (result.success) {
                     showNotification('Subdomain added successfully!', 'success');
-                    subdomainInput.value = ''; // Clear input field
-                    loadSubdomains(); // Reload list to show new subdomain
+                    subdomainInput.value = '';
+                    loadSubdomains();
                 } else {
-                    showNotification(result.message || 'Failed to add subdomain.', 'error');
+                    showNotification(result.message || 'Failed to Add Wildcard.', 'error');
                 }
             } catch (error) {
                 console.error('Error adding subdomain to backend:', error);
@@ -529,7 +493,6 @@
             }
         });
 
-        // Event delegation for delete buttons
         subdomainTableBody.addEventListener('click', (event) => {
             if (event.target.classList.contains('delete-btn')) {
                 currentDomainToDelete = {
@@ -538,21 +501,21 @@
                 };
                 domainToDeleteSpan.textContent = currentDomainToDelete.name;
                 confirmDeletionModal.classList.remove('hidden');
-                deletePasswordInput.value = ''; // Clear password field
-                deletePasswordInput.focus(); // Focus on password input
+                deletePasswordInput.value = '';
+                deletePasswordInput.focus();
             }
         });
 
         cancelDeleteBtn.addEventListener('click', () => {
             confirmDeletionModal.classList.add('hidden');
-            currentDomainToDelete = null; // Clear the domain to delete
-            deletePasswordInput.value = ''; // Clear password field
+            currentDomainToDelete = null;
+            deletePasswordInput.value = '';
         });
 
         closeModalBtn.addEventListener('click', () => {
             confirmDeletionModal.classList.add('hidden');
-            currentDomainToDelete = null; // Clear the domain to delete
-            deletePasswordInput.value = ''; // Clear password field
+            currentDomainToDelete = null;
+            deletePasswordInput.value = '';
         });
 
         confirmDeleteBtn.addEventListener('click', async () => {
@@ -567,7 +530,7 @@
                 return;
             }
 
-            showNotification('Deleting subdomain...', 'success'); // Optimistic UI update
+            showNotification('Deleting subdomain...', 'success');
             try {
                 const response = await fetch(`${BASE_API_URL}/subdomains/${currentDomainToDelete.id}`, {
                     method: 'DELETE',
@@ -577,19 +540,18 @@
                     body: JSON.stringify({ password }),
                 });
 
-                const result = await response.json(); // Always parse JSON to get message
+                const result = await response.json();
 
-                if (!response.ok) { // Check response status first (e.g., 401, 403, 500)
+                if (!response.ok) {
                     throw new Error(result.message || 'Failed to delete subdomain due to server error.');
                 }
                 
                 if (result.success) {
-                    showNotification('Subdomain deleted successfully!', 'success'); // Specific success message
+                    showNotification('Subdomain deleted successfully!', 'success');
                     confirmDeletionModal.classList.add('hidden');
-                    loadSubdomains(); // Reload list after successful deletion
+                    loadSubdomains();
                 } else {
                     showNotification(result.message || 'Failed to delete subdomain.', 'error');
-                    // If the specific error is 'Incorrect password.', keep the modal open
                     if (result.message !== 'Incorrect password.') {
                         confirmDeletionModal.classList.add('hidden');
                     }
@@ -597,22 +559,21 @@
             } catch (error) {
                 console.error('Error deleting subdomain via backend:', error);
                 showNotification(`Error: ${error.message}`, 'error');
-                confirmDeletionModal.classList.add('hidden'); // Hide modal for network/fatal errors
+                confirmDeletionModal.classList.add('hidden');
             } finally {
-                // Clear the domain to delete, regardless of success or failure
                 currentDomainToDelete = null;
-                deletePasswordInput.value = ''; // Clear password field
+                deletePasswordInput.value = '';
             }
         });
 
         entriesPerPageSelect.addEventListener('change', () => {
             entriesPerPage = parseInt(entriesPerPageSelect.value);
-            currentPage = 1; // Reset to first page when entries per page changes
+            currentPage = 1;
             applyFiltersAndRender();
         });
 
         searchSubdomainInput.addEventListener('keyup', () => {
-            currentPage = 1; // Reset to first page when search term changes
+            currentPage = 1;
             applyFiltersAndRender();
         });
 
@@ -631,11 +592,8 @@
             }
         });
 
-        // Initial load of subdomains and apply theme when the DOM content is fully loaded
-        document.addEventListener('DOMContentLoaded', () => {
-            applySavedTheme();
-            loadSubdomains();
-        });
+        applySavedTheme();
+        loadSubdomains();
     </script>
 </body>
 </html>
