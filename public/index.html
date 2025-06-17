@@ -1,609 +1,100 @@
-<!DOCTYPE html>
-<html lang="en" class="dark">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wildcard Manager</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        :root {
-            --primary-dark: #1a202c;
-            --container-dark: #2d3748;
-            --card-dark: #4a5568;
-            --border-dark: #64748b; /* Adjusted border color for better contrast */
-            --gray-input: #6a7380;
-            --purple-header: #6b46c1;
-            --purple-btn: #805ad5;
-            --light-text: #e2e8f0;
-            --dark-text: #a0aec0;
-            --danger-red: #e53e3e;
-            --success-green: #38a169;
-            --active-green: #48bb78;
+// ... (bagian kode lainnya)
 
-            --primary-light: #f7fafc;
-            --container-light: #ffffff;
-            --card-light: #edf2f7;
-            --border-light: #e2e8f0;
-            --gray-input-light: #e2e8f0;
-            --text-dark-mode: #2d3748;
-            --gray-btn-light: #a0aec0;
-        }
+async function loadSubdomains() {
+    showNotification('Loading subdomains...', 'success');
+    try {
+        const response = await fetch(`${BASE_API_URL}/subdomains`);
+        if (!response.ok) {
+            // Coba parsing JSON, tapi jika gagal, ambil sebagai teks
+            let errorData;
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                errorData = await response.json();
+            } else {
+                errorData = { message: await response.text() }; // Ambil sebagai teks jika bukan JSON
+            }
+            throw new Error(errorData.message || 'Failed to load subdomains. Server returned non-JSON response.');
+        }
+        const data = await response.json();
 
-        .dark .bg-primary-dark { background-color: var(--primary-dark); }
-        .dark .bg-container-dark { background-color: var(--container-dark); }
-        .dark .bg-card-dark { background-color: var(--card-dark); }
-        .dark .border-border-dark { border-color: var(--border-dark); }
-        .dark .bg-gray-input { background-color: var(--gray-input); }
-        .dark .text-light-text { color: var(--light-text); }
-        .dark .text-dark-text { color: var(--dark-text); }
+        if (data.success) {
+            allSubdomains = data.subdomains;
+            showNotification('Subdomains loaded successfully!', 'success');
+        } else {
+            showNotification(data.message || 'Failed to load subdomains.', 'error');
+        }
+    } catch (error) {
+        console.error('Error fetching subdomains from backend:', error);
+        // Tampilkan pesan error yang lebih informatif jika respons adalah HTML
+        if (error.message.startsWith("Unexpected token 'T', \"The page c\"")) {
+            showNotification('Error: The server returned an unexpected response format. Please check the server logs.', 'error');
+        } else {
+            showNotification(`Error: ${error.message}`, 'error');
+        }
+        allSubdomains = [];
+    } finally {
+        applyFiltersAndRender();
+    }
+}
 
-        .light .bg-primary-dark { background-color: var(--primary-light); }
-        .light .bg-container-dark { background-color: var(--container-light); }
-        .light .bg-card-dark { background-color: var(--card-light); }
-        .light .border-border-dark { border-color: var(--border-light); }
-        .light .bg-gray-input { background-color: var(--gray-input-light); color: var(--text-dark-mode); }
-        .light .text-light-text { color: var(--text-dark-mode); }
-        .light .text-dark-text { color: var(--text-dark-mode); }
-        .light .text-white { color: var(--text-dark-mode); }
-        .light .bg-gray-700 { background-color: var(--gray-btn-light); color: var(--text-dark-mode); }
-        .light .hover\:bg-gray-600:hover { background-color: #cbd5e0; }
-        .light .border-gray-600 { border-color: var(--border-light); }
-        .light .bg-gray-600 { background-color: var(--gray-input-light); }
-        .light .text-gray-300 { color: #4a5568; }
+// ... (bagian kode lainnya)
 
-        .bg-purple-header { background-color: var(--purple-header); }
-        .bg-purple-btn { background-color: var(--purple-btn); }
-        .hover\:bg-purple-header:hover { background-color: var(--purple-header); }
-        .bg-danger-red { background-color: var(--danger-red); }
-        .hover\:bg-red-700:hover { background-color: #c53030; }
-        .bg-success-green { background-color: var(--success-green); }
-        .text-active-green { color: var(--active-green); }
+confirmDeleteBtn.addEventListener('click', async () => {
+    const password = deletePasswordInput.value;
+    if (!currentDomainToDelete) {
+        showNotification('No domain selected for deletion.', 'error');
+        confirmDeletionModal.classList.add('hidden');
+        return;
+    }
+    if (password === '') {
+        showNotification('Password cannot be empty.', 'error');
+        return;
+    }
 
-        .copy-success {
-            position: absolute;
-            background-color: #4CAF50;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            opacity: 0;
-            animation: fadeAndSlideUp 1.5s forwards;
-            white-space: nowrap;
-            z-index: 10;
-        }
+    showNotification('Deleting subdomain...', 'success');
+    try {
+        const response = await fetch(`${BASE_API_URL}/subdomains/${currentDomainToDelete.id}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ password }),
+        });
 
-        @keyframes fadeAndSlideUp {
-            0% {
-                opacity: 0;
-                transform: translateY(0);
-            }
-            20% {
-                opacity: 1;
-                transform: translateY(-10px);
-            }
-            80% {
-                opacity: 1;
-                transform: translateY(-10px);
-            }
-            100% {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-        }
+        // Sama seperti di loadSubdomains, tambahkan penanganan untuk non-JSON response
+        let result;
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            result = await response.json();
+        } else {
+            result = { success: false, message: await response.text() }; // Ambil sebagai teks
+        }
 
-        .table {
-            border: 1px solid var(--border-dark); /* Add overall border to the table */
-        }
-
-        .table th, .table td {
-            vertical-align: middle;
-            border: 1px solid var(--border-dark); /* Apply border to all sides of cells */
-            /* Remove specific border-right/border-b classes as they are now covered by 'border' */
-        }
-        
-        /* Ensure the first-child and last-child borders are handled by the general 'border' rule */
-        .table th:first-child,
-        .table td:first-child {
-            border-left: 1px solid var(--border-dark); /* Explicitly add left border to the first column */
-        }
-
-        .w-no {
-            width: 50px;
-        }
-
-        input:focus, select:focus, button:focus {
-            outline: 2px solid var(--purple-btn);
-            outline-offset: 2px;
-        }
-
-        button:disabled {
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-    </style>
-</head>
-<body class="bg-primary-dark text-light-text p-4 md:p-5">
-    <div class="container mx-auto bg-container-dark p-4 rounded-lg shadow-lg max-w-4xl">
-        <header class="flex flex-col md:flex-row items-start md:items-center justify-between pb-4 border-b border-border-dark mb-4">
-            <div class="flex items-center mb-2 md:mb-0">
-                <i class="fas fa-home text-xl text-gray-400 mr-2"></i>
-                <h1 class="text-xl md:text-2xl font-bold text-white">Wildcard Manager</h1>
-            </div>
-            <button id="themeToggle" class="py-2 px-4 rounded-full bg-gray-700 text-white text-sm flex items-center justify-center hover:bg-gray-600 transition duration-300 shadow-md">
-                <i class="fas fa-sun mr-2 text-yellow-400"></i>
-                <span id="themeText">Light Mode</span>
-                <i class="fas fa-moon ml-2 text-blue-300 hidden"></i>
-            </button>
-        </header>
-
-        <section class="card bg-card-dark rounded-lg mb-4 overflow-hidden">
-            <div class="bg-purple-header p-3 flex items-center text-white">
-                <i class="fas fa-plus-circle text-lg mr-2"></i>
-                <h2 class="text-lg font-semibold">Add Wildcard</h2>
-            </div>
-            <div class="card-body p-4">
-                <div class="mb-4 flex items-center">
-                    <label class="fas fa-globe text-xs mr-1"><strong> Domain :</strong></label>
-                    <span class="text-xs text-gray-300">joss.krikkrik.tech</span>
-                </div>
-                <div class="mb-4">
-                    <label for="subdomainInput" class="block text-sm font-medium mb-1">Subdomain</label>
-                    <div class="flex">
-                        <input type="text" id="subdomainInput" placeholder="Enter subdomain (e.g., blog)" class="w-2/3 p-2 border border-gray-600 rounded-l bg-gray-input text-white outline-none text-xs">
-                        <span class="bg-gray-700 text-white p-2 rounded-r whitespace-nowrap flex items-center justify-center text-xs">.joss.krikkrik.tech</span>
-                    </div>
-                </div>
-                <button id="addSubdomainBtn" class="w-full py-2 px-4 rounded bg-purple-btn text-white text-sm hover:bg-purple-header transition duration-300">
-                    <i class="fas fa-save me-2"></i> Add Wildcard
-                </button>
-            </div>
-        </section>
-
-        <section class="card bg-card-dark rounded-lg mb-4 overflow-hidden">
-            <div class="bg-purple-header p-3 flex items-center text-white">
-                <i class="fas fa-list text-lg mr-2"></i>
-                <h2 class="text-lg font-semibold">Wildcard List</h2>
-            </div>
-            <div class="card-body p-4">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
-                    <div class="flex items-center text-sm">
-                        <span>Show</span>
-                        <select id="entriesPerPage" class="ml-2 mr-2 p-1 border border-gray-600 rounded bg-gray-input text-white text-sm">
-                            <option value="10">10</option>
-                            <option value="25">25</option>
-                            <option value="50">50</option>
-                        </select>
-                        <span>entries</span>
-                    </div>
-                    <div class="flex items-center text-sm w-full sm:w-auto">
-                        <span>Search:</span>
-                        <input type="text" id="searchSubdomain" class="ml-2 p-1 border border-gray-600 rounded bg-gray-input text-white outline-none w-full sm:w-auto" placeholder="Search Wildcard...">
-                    </div>
-                </div>
-                <div class="overflow-x-auto mb-4">
-                    <table class="w-full border-collapse min-w-[500px] text-sm table">
-                        <thead>
-                            <tr class="bg-gray-700 text-white">
-                                <th class="p-3 text-left whitespace-nowrap w-no">No.</th>
-                                <th class="p-3 text-left whitespace-nowrap">Wildcard</th>
-                                <th class="p-3 text-left whitespace-nowrap">Status</th>
-                                <th class="p-3 text-left whitespace-nowrap">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="subdomainTableBody">
-                            <tr><td colspan="4" class="p-3 text-center text-gray-400">Loading subdomains...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="flex flex-col sm:flex-row justify-between items-center text-sm mt-4 gap-3">
-                    <span id="paginationText">Showing 0 to 0 of 0 entries</span>
-                    <div class="flex gap-2">
-                        <button id="prevPageBtn" class="py-2 px-3 rounded bg-gray-700 text-white text-sm hover:bg-gray-600 transition duration-300">Prev</button>
-                        <div id="paginationNumbers" class="flex gap-2">
-                        </div>
-                        <button id="nextPageBtn" class="py-2 px-3 rounded bg-gray-700 text-white text-sm hover:bg-gray-600 transition duration-300">Next</button>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <div id="errorMessage" class="bg-danger-red text-white p-3 rounded-md mt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between font-bold hidden">
-            <span>Error!</span>
-            <span id="errorText"></span>
-        </div>
-
-        <div id="successMessage" class="bg-success-green text-white p-3 rounded-md mt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between font-bold hidden">
-            <span>Success!</span>
-            <span id="successText"></span>
-        </div>
-
-        <div id="confirmDeletionModal" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
-            <div class="bg-card-dark p-6 rounded-lg w-11/12 max-w-md shadow-xl">
-                <div class="flex justify-between items-center border-b border-gray-600 pb-3 mb-4">
-                    <h2 class="text-xl font-semibold text-white">Confirm Deletion</h2>
-                    <span class="text-gray-400 text-3xl font-bold cursor-pointer hover:text-white" id="closeModalBtn">&times;</span>
-                </div>
-                <div class="mb-4">
-                    <p class="mb-2 text-sm">You are about to delete '<span id="domainToDelete"></span>'.</p>
-                    <p class="mb-3 text-sm">Enter password to confirm:</p>
-                    <input type="password" id="deletePassword" placeholder="Enter password" class="w-full p-2 border border-gray-600 rounded bg-gray-input text-white outline-none text-sm">
-                </div>
-                <div class="flex justify-end gap-3 flex-wrap">
-                    <button id="cancelDeleteBtn" class="py-2 px-4 rounded bg-gray-700 text-white text-sm hover:bg-gray-600 transition duration-300 flex-grow sm:flex-grow-0">Cancel</button>
-                    <button id="confirmDeleteBtn" class="py-2 px-4 rounded bg-danger-red text-white text-sm hover:bg-red-700 transition duration-300 flex-grow sm:flex-grow-0">Delete</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <footer class="text-center mt-6 pt-4 border-t border-border-dark text-dark-text text-sm">
-        <p class="mb-2">&copy; 2025 Wildcard Manager <span class="text-red-500">❤️</span> by Geo Project</p>
-        <div class="social-icons">
-            <a href="#" class="text-gray-400 text-lg mx-2 hover:text-white transition duration-300"><i class="fab fa-facebook"></i></a>
-            <a href="#" class="text-gray-400 text-lg mx-2 hover:text-white transition duration-300"><i class="fab fa-instagram"></i></a>
-        </div>
-    </footer>
-
-    <script>
-        const BASE_API_URL = '/api';
-
-        const subdomainInput = document.getElementById('subdomainInput');
-        const addSubdomainBtn = document.getElementById('addSubdomainBtn');
-        const subdomainTableBody = document.getElementById('subdomainTableBody');
-        const errorMessageDiv = document.getElementById('errorMessage');
-        const errorTextSpan = document.getElementById('errorText');
-        const successMessageDiv = document.getElementById('successMessage');
-        const successTextSpan = document.getElementById('successText');
-        const confirmDeletionModal = document.getElementById('confirmDeletionModal');
-        const closeModalBtn = document.getElementById('closeModalBtn');
-        const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
-        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
-        const domainToDeleteSpan = document.getElementById('domainToDelete');
-        const deletePasswordInput = document.getElementById('deletePassword'); // Fixed typo here, was "document = document"
-        const entriesPerPageSelect = document.getElementById('entriesPerPage');
-        const searchSubdomainInput = document.getElementById('searchSubdomain');
-        const paginationTextSpan = document.getElementById('paginationText');
-        const paginationNumbersDiv = document.getElementById('paginationNumbers');
-        const prevPageBtn = document.getElementById('prevPageBtn');
-        const nextPageBtn = document.getElementById('nextPageBtn');
-        const themeToggle = document.getElementById('themeToggle');
-        const themeText = document.getElementById('themeText');
-
-        let currentDomainToDelete = null;
-        let allSubdomains = [];
-        let currentPage = 1;
-        let entriesPerPage = parseInt(entriesPerPageSelect.value);
-
-        function toggleTheme() {
-            const html = document.documentElement;
-            if (html.classList.contains('dark')) {
-                html.classList.remove('dark');
-                html.classList.add('light');
-                localStorage.setItem('theme', 'light');
-                themeToggle.innerHTML = '<i class="fas fa-moon mr-2 text-blue-300"></i><span>Dark Mode</span>';
-            } else {
-                html.classList.remove('light');
-                html.classList.add('dark');
-                localStorage.setItem('theme', 'dark');
-                themeToggle.innerHTML = '<i class="fas fa-sun mr-2 text-yellow-400"></i><span>Light Mode</span>';
-            }
-        }
-
-        function applySavedTheme() {
-            const savedTheme = localStorage.getItem('theme') || 'dark';
-            const html = document.documentElement;
-            html.classList.add(savedTheme);
-            if (savedTheme === 'light') {
-                themeToggle.innerHTML = '<i class="fas fa-moon mr-2 text-blue-300"></i><span>Dark Mode</span>';
-            } else {
-                themeToggle.innerHTML = '<i class="fas fa-sun mr-2 text-yellow-400"></i><span>Light Mode</span>';
-            }
-        }
-
-        function showNotification(message, type) {
-            errorMessageDiv.classList.add('hidden');
-            successMessageDiv.classList.add('hidden');
-
-            if (type === 'error') {
-                errorTextSpan.textContent = message;
-                errorMessageDiv.classList.remove('hidden');
-            } else if (type === 'success') {
-                successTextSpan.textContent = message;
-                successMessageDiv.classList.remove('hidden');
-            }
-
-            setTimeout(() => {
-                errorMessageDiv.classList.add('hidden');
-                successMessageDiv.classList.add('hidden');
-            }, 5000);
-        }
-
-        function copyToClipboard(text, element) {
-            navigator.clipboard.writeText(text).then(() => {
-                const successSpan = document.createElement('span');
-                successSpan.className = 'copy-success';
-                successSpan.textContent = 'Copied!';
-                
-                const parentTd = element.closest('td');
-                if (parentTd && window.getComputedStyle(parentTd).position === 'static') {
-                    parentTd.style.position = 'relative';
-                }
-                parentTd.appendChild(successSpan);
-
-                const rect = element.getBoundingClientRect();
-                const parentRect = parentTd.getBoundingClientRect();
-                
-                successSpan.style.top = `${rect.top - parentRect.top - successSpan.offsetHeight - 5}px`;
-                successSpan.style.left = `${rect.left - parentRect.left + (rect.width / 2) - (successSpan.offsetWidth / 2)}px`;
-
-                setTimeout(() => {
-                    successSpan.remove();
-                }, 1500);
-            }).catch(err => {
-                console.error('Failed to copy: ', err);
-                showNotification('Failed to copy text.', 'error');
-            });
-        }
-
-        function renderSubdomains(domainsToRender) {
-            subdomainTableBody.innerHTML = '';
-
-            if (domainsToRender.length === 0) {
-                subdomainTableBody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-400">No subdomains found.</td></tr>';
-                updatePagination(0);
-                return;
-            }
-
-            const startIndex = (currentPage - 1) * entriesPerPage;
-            const endIndex = startIndex + entriesPerPage;
-            const paginatedDomains = domainsToRender.slice(startIndex, endIndex);
-
-            paginatedDomains.forEach((domain, index) => {
-                const row = subdomainTableBody.insertRow();
-                row.className = "hover:bg-gray-700 transition duration-150";
-                const displayIndex = startIndex + index + 1;
-
-                row.innerHTML = `
-                    <td class="p-3 whitespace-nowrap w-no">
-                        ${displayIndex}
-                    </td>
-                    <td class="p-3 whitespace-nowrap">
-                        <span class="subdomain-text cursor-pointer hover:underline" data-full-domain="${domain.hostname}">${domain.hostname}</span>
-                    </td>
-                    <td class="p-3 whitespace-nowrap">
-                        <span class="text-active-green font-bold">Active</span>
-                    </td>
-                    <td class="p-3 whitespace-nowrap">
-                        <button class="py-1 px-3 rounded bg-danger-red text-white text-sm hover:bg-red-700 transition duration-300 delete-btn" data-domain-id="${domain.id}" data-domain-name="${domain.hostname}">Delete</button>
-                    </td>
-                `;
-            });
-
-            document.querySelectorAll('.subdomain-text').forEach(element => {
-                element.addEventListener('click', (event) => {
-                    const fullDomain = event.target.dataset.fullDomain;
-                    copyToClipboard(fullDomain, event.target);
-                });
-            });
-
-            updatePagination(domainsToRender.length);
-        }
-
-        function updatePagination(totalEntries) {
-            const totalPages = Math.ceil(totalEntries / entriesPerPage);
-            
-            const startEntry = Math.min(totalEntries, (currentPage - 1) * entriesPerPage + 1);
-            const endEntry = Math.min(totalEntries, currentPage * entriesPerPage);
-            paginationTextSpan.textContent = `Showing ${startEntry} to ${endEntry} of ${totalEntries} entries`;
-
-            paginationNumbersDiv.innerHTML = '';
-            for (let i = 1; i <= totalPages; i++) {
-                const button = document.createElement('button');
-                button.textContent = i;
-                button.className = `py-2 px-3 rounded text-white text-sm transition duration-300 ${i === currentPage ? 'bg-purple-btn hover:bg-purple-header' : 'bg-gray-700 hover:bg-gray-600'}`;
-                button.addEventListener('click', () => {
-                    currentPage = i;
-                    applyFiltersAndRender();
-                });
-                paginationNumbersDiv.appendChild(button);
-            }
-
-            prevPageBtn.disabled = currentPage === 1;
-            nextPageBtn.disabled = currentPage === totalPages || totalPages === 0;
-
-            prevPageBtn.classList.toggle('opacity-50', prevPageBtn.disabled);
-            prevPageBtn.classList.toggle('cursor-not-allowed', prevPageBtn.disabled);
-            nextPageBtn.classList.toggle('opacity-50', nextPageBtn.disabled);
-            nextPageBtn.classList.toggle('cursor-not-allowed', nextPageBtn.disabled);
-        }
-
-        // Helper function to safely parse response as JSON or text
-        async function parseResponse(response) {
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-                return await response.json();
-            } else {
-                return { message: await response.text(), success: false };
-            }
-        }
-
-        async function loadSubdomains() {
-            showNotification('Loading subdomains...', 'success');
-            try {
-                const response = await fetch(`${BASE_API_URL}/subdomains`);
-                const data = await parseResponse(response); // Use the helper function
-
-                if (!response.ok) {
-                    throw new Error(data.message || 'Failed to load subdomains.');
-                }
-                
-                if (data.success) {
-                    allSubdomains = data.subdomains;
-                    showNotification('Subdomains loaded successfully!', 'success');
-                } else {
-                    showNotification(data.message || 'Failed to load subdomains.', 'error');
-                }
-            } catch (error) {
-                console.error('Error fetching subdomains from backend:', error);
-                showNotification(`Error: ${error.message}`, 'error');
-                allSubdomains = [];
-            } finally {
-                applyFiltersAndRender();
-            }
-        }
-
-        function applyFiltersAndRender() {
-            const searchTerm = searchSubdomainInput.value.toLowerCase().trim();
-            const filteredDomains = allSubdomains.filter(domain =>
-                domain.hostname.toLowerCase().includes(searchTerm)
-            );
-            renderSubdomains(filteredDomains);
-        }
-
-        themeToggle.addEventListener('click', toggleTheme);
-
-        addSubdomainBtn.addEventListener('click', async () => {
-            const subdomainPart = subdomainInput.value.trim();
-            if (subdomainPart === '') {
-                showNotification('Subdomain cannot be empty.', 'error');
-                return;
-            }
-            if (!/^[a-zA-Z0-9-]+$/.test(subdomainPart) || subdomainPart.startsWith('-') || subdomainPart.endsWith('-')) {
-                showNotification('Subdomain can only contain letters, numbers, and hyphens, and cannot start or end with a hyphen.', 'error');
-                return;
-            }
-
-            showNotification('Adding subdomain...', 'success');
-            try {
-                const response = await fetch(`${BASE_API_URL}/subdomains`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ subdomainPart }),
-                });
-
-                const result = await parseResponse(response); // Use the helper function
-
-                if (!response.ok) {
-                    throw new Error(result.message || 'Failed to Add Wildcard due to server error.');
-                }
-                
-                if (result.success) {
-                    showNotification('Subdomain added successfully!', 'success');
-                    subdomainInput.value = '';
-                    loadSubdomains();
-                } else {
-                    showNotification(result.message || 'Failed to Add Wildcard.', 'error');
-                }
-            } catch (error) {
-                console.error('Error adding subdomain to backend:', error);
-                showNotification(`Error: ${error.message}`, 'error');
-            }
-        });
-
-        subdomainTableBody.addEventListener('click', (event) => {
-            if (event.target.classList.contains('delete-btn')) {
-                currentDomainToDelete = {
-                    id: event.target.dataset.domainId,
-                    name: event.target.dataset.domainName
-                };
-                domainToDeleteSpan.textContent = currentDomainToDelete.name;
-                confirmDeletionModal.classList.remove('hidden');
-                deletePasswordInput.value = '';
-                deletePasswordInput.focus();
-            }
-        });
-
-        cancelDeleteBtn.addEventListener('click', () => {
-            confirmDeletionModal.classList.add('hidden');
-            currentDomainToDelete = null;
-            deletePasswordInput.value = '';
-        });
-
-        closeModalBtn.addEventListener('click', () => {
-            confirmDeletionModal.classList.add('hidden');
-            currentDomainToDelete = null;
-            deletePasswordInput.value = '';
-        });
-
-        confirmDeleteBtn.addEventListener('click', async () => {
-            const password = deletePasswordInput.value;
-            if (!currentDomainToDelete) {
-                showNotification('No domain selected for deletion.', 'error');
-                confirmDeletionModal.classList.add('hidden');
-                return;
-            }
-            if (password === '') {
-                showNotification('Password cannot be empty.', 'error');
-                return;
-            }
-
-            showNotification('Deleting subdomain...', 'success');
-            try {
-                const response = await fetch(`${BASE_API_URL}/subdomains/${currentDomainToDelete.id}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ password }),
-                });
-
-                const result = await parseResponse(response); // Use the helper function
-
-                if (!response.ok) {
-                    throw new Error(result.message || 'Failed to delete subdomain due to server error.');
-                }
-                
-                if (result.success) {
-                    showNotification('Subdomain deleted successfully!', 'success');
-                    confirmDeletionModal.classList.add('hidden');
-                    loadSubdomains();
-                } else {
-                    showNotification(result.message || 'Failed to delete subdomain.', 'error');
-                    if (result.message !== 'Incorrect password.') {
-                        confirmDeletionModal.classList.add('hidden');
-                    }
-                }
-            } catch (error) {
-                console.error('Error deleting subdomain via backend:', error);
-                showNotification(`Error: ${error.message}`, 'error');
-                confirmDeletionModal.classList.add('hidden');
-            } finally {
-                currentDomainToDelete = null;
-                deletePasswordInput.value = '';
-            }
-        });
-
-        entriesPerPageSelect.addEventListener('change', () => {
-            entriesPerPage = parseInt(entriesPerPageSelect.value);
-            currentPage = 1;
-            applyFiltersAndRender();
-        });
-
-        searchSubdomainInput.addEventListener('keyup', () => {
-            currentPage = 1;
-            applyFiltersAndRender();
-        });
-
-        prevPageBtn.addEventListener('click', () => {
-            if (currentPage > 1) {
-                currentPage--;
-                applyFiltersAndRender();
-            }
-        });
-
-        nextPageBtn.addEventListener('click', () => {
-            const totalPages = Math.ceil(allSubdomains.length / entriesPerPage);
-            if (currentPage < totalPages) {
-                currentPage++;
-                applyFiltersAndRender();
-            }
-        });
-
-        applySavedTheme();
-        loadSubdomains();
-    </script>
-</body>
-</html>
+        if (!response.ok) {
+            throw new Error(result.message || 'Failed to delete subdomain due to server error.');
+        }
+        
+        if (result.success) {
+            showNotification('Subdomain deleted successfully!', 'success');
+            confirmDeletionModal.classList.add('hidden');
+            loadSubdomains();
+        } else {
+            showNotification(result.message || 'Failed to delete subdomain.', 'error');
+            if (result.message !== 'Incorrect password.') {
+                confirmDeletionModal.classList.add('hidden');
+            }
+        }
+    } catch (error) {
+        console.error('Error deleting subdomain via backend:', error);
+        // Tampilkan pesan error yang lebih informatif
+        if (error.message.startsWith("Unexpected token 'T', \"The page c\"")) {
+            showNotification('Error deleting: The server returned an unexpected response format. Check server logs.', 'error');
+        } else {
+            showNotification(`Error: ${error.message}`, 'error');
+        }
+        confirmDeletionModal.classList.add('hidden');
+    } finally {
+        currentDomainToDelete = null;
+        deletePasswordInput.value = '';
+    }
+});
