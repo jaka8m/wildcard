@@ -4,7 +4,8 @@
   "description": "Aplikasi manajer subdomain sederhana untuk Cloudflare Workers",
   "main": "api/index.js",
   "scripts": {
-    "start": "node api/index.js"
+    "start": "node api/index.js",
+    "dev": "nodemon api/index.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
