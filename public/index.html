@@ -100,7 +100,7 @@
             vertical-align: middle;
             border: 1px solid var(--border-dark); /* Apply border to all sides of cells */
         }
-           
+            
         /* Ensure the first-child and last-child borders are handled by the general 'border' rule */
         .table th:first-child,
         .table td:first-child {
@@ -144,13 +144,13 @@
             <div class="card-body p-4">
                 <div class="mb-4 flex items-center">
                     <label class="fas fa-globe text-xs mr-1"><strong> Domain :</strong></label>
-                    <span class="text-xs text-gray-300">joss.krikkrik.tech</span>
+                    <span id="rootDomainDisplay" class="text-xs text-gray-300">Loading domain...</span> 
                 </div>
                 <div class="mb-4">
                     <label for="subdomainInput" class="block text-sm font-medium mb-1">Subdomain</label>
                     <div class="flex">
                         <input type="text" id="subdomainInput" placeholder="Enter subdomain (e.g., blog)" class="w-2/3 p-2 border border-gray-600 rounded-l bg-gray-input text-white outline-none text-xs">
-                        <span class="bg-gray-700 text-white p-2 rounded-r whitespace-nowrap flex items-center justify-center text-xs">.joss.krikkrik.tech</span>
+                        <span id="rootDomainSuffix" class="bg-gray-700 text-white p-2 rounded-r whitespace-nowrap flex items-center justify-center text-xs">.yourdomain.com</span>
                     </div>
                 </div>
                 <button id="addSubdomainBtn" class="w-full py-2 px-4 rounded bg-purple-btn text-white text-sm hover:bg-purple-header transition duration-300">
@@ -245,8 +245,8 @@
     </footer>
 
     <script>
-        const BASE_API_URL = 'http://localhost:3000/api'; // Sesuaikan port jika Anda mengubahnya di app.js
-
+        // Sesuaikan URL dasar API. Vercel akan otomatis me-route /api ke fungsi serverless Anda.
+        const BASE_API_URL = '/api'; 
 
         const subdomainInput = document.getElementById('subdomainInput');
         const addSubdomainBtn = document.getElementById('addSubdomainBtn');
@@ -260,7 +260,7 @@
         const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
         const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
         const domainToDeleteSpan = document.getElementById('domainToDelete');
-        const deletePasswordInput = document.getElementById('deletePassword'); // Perbaikan: Ambil elemen dengan benar
+        const deletePasswordInput = document.getElementById('deletePassword');
         const entriesPerPageSelect = document.getElementById('entriesPerPage');
         const searchSubdomainInput = document.getElementById('searchSubdomain');
         const paginationTextSpan = document.getElementById('paginationText');
@@ -269,9 +269,11 @@
         const nextPageBtn = document.getElementById('nextPageBtn');
         const themeToggle = document.getElementById('themeToggle');
         const themeText = document.getElementById('themeText');
+        const rootDomainDisplay = document.getElementById('rootDomainDisplay');
+        const rootDomainSuffix = document.getElementById('rootDomainSuffix');
 
         let currentDomainToDelete = null;
-        let allSubdomains = []; // Semua data subdomain yang diambil dari API
+        let allSubdomains = []; 
         let currentPage = 1;
         let entriesPerPage = parseInt(entriesPerPageSelect.value);
 
@@ -303,10 +305,10 @@
         }
 
         // --- Notification Handling ---
-        let notificationTimeout; // Untuk mengelola timeout notifikasi
+        let notificationTimeout;
 
         function showNotification(message, type) {
-            clearTimeout(notificationTimeout); // Hapus timeout sebelumnya
+            clearTimeout(notificationTimeout);
             errorMessageDiv.classList.add('hidden');
             successMessageDiv.classList.add('hidden');
 
@@ -316,7 +318,6 @@
             targetSpan.textContent = message;
             targetDiv.classList.remove('hidden');
 
-            // Sembunyikan notifikasi setelah 5 detik
             notificationTimeout = setTimeout(() => {
                 targetDiv.classList.add('hidden');
             }, 5000);
@@ -328,18 +329,16 @@
                 const successSpan = document.createElement('span');
                 successSpan.className = 'copy-success';
                 successSpan.textContent = 'Disalin!';
-                   
+                    
                 const parentTd = element.closest('td');
-                // Pastikan parent TD memiliki posisi 'relative' untuk penempatan absolut span
                 if (parentTd && window.getComputedStyle(parentTd).position === 'static') {
                     parentTd.style.position = 'relative';
                 }
                 parentTd.appendChild(successSpan);
 
-                // Posisi span di atas elemen yang diklik
                 const rect = element.getBoundingClientRect();
                 const parentRect = parentTd.getBoundingClientRect();
-                   
+                    
                 successSpan.style.top = `${rect.top - parentRect.top - successSpan.offsetHeight - 5}px`;
                 successSpan.style.left = `${rect.left - parentRect.left + (rect.width / 2) - (successSpan.offsetWidth / 2)}px`;
 
@@ -387,7 +386,6 @@
                 `;
             });
 
-            // Tambahkan event listener untuk fungsi salin setelah elemen dirender
             document.querySelectorAll('.subdomain-text').forEach(element => {
                 element.addEventListener('click', (event) => {
                     const fullDomain = event.target.dataset.fullDomain;
@@ -400,13 +398,12 @@
 
         function updatePagination(totalEntries) {
             const totalPages = Math.ceil(totalEntries / entriesPerPage);
-               
+                
             const startEntry = Math.min(totalEntries, (currentPage - 1) * entriesPerPage + 1);
             const endEntry = Math.min(totalEntries, currentPage * entriesPerPage);
             paginationTextSpan.textContent = `Menampilkan ${startEntry} sampai ${endEntry} dari ${totalEntries} entri`;
 
             paginationNumbersDiv.innerHTML = '';
-            // Hanya tampilkan tombol halaman jika ada lebih dari 1 halaman
             if (totalPages > 1) {
                 for (let i = 1; i <= totalPages; i++) {
                     const button = document.createElement('button');
@@ -451,7 +448,36 @@
                 showNotification(`Error: ${error.message}`, 'error');
                 allSubdomains = []; // Kosongkan jika ada error
             } finally {
-                applyFiltersAndRender(); // Selalu render ulang setelah upaya pemuatan
+                applyFiltersAndRender(); 
+            }
+        }
+
+        // Fungsi untuk mengambil CLOUDFLARE_ROOT_DOMAIN dari API atau mengatur fallback
+        async function loadRootDomain() {
+            try {
+                // Asumsi ada endpoint di API yang mengembalikan root domain
+                // Karena root domain adalah Environment Variable, cara terbaik adalah
+                // mengaturnya secara statis di HTML jika sudah tahu, atau membuat
+                // endpoint API khusus jika perlu dinamis.
+                // Untuk contoh ini, kita akan asumsikan kita mendapatkan nilai dari API
+                // Jika API tidak menyediakan, hardcode saja atau berikan placeholder
+                const response = await fetch(`${BASE_API_URL}/root-domain`); // Contoh endpoint baru
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.rootDomain) {
+                        rootDomainDisplay.textContent = data.rootDomain;
+                        rootDomainSuffix.textContent = `.${data.rootDomain}`;
+                    } else {
+                        rootDomainDisplay.textContent = 'yourdomain.com'; // Fallback
+                        rootDomainSuffix.textContent = `.yourdomain.com`; // Fallback
+                    }
+                } else {
+                    throw new Error('Failed to fetch root domain');
+                }
+            } catch (error) {
+                console.warn('Could not fetch root domain from API, using fallback:', error);
+                rootDomainDisplay.textContent = 'joss.krikkrik.tech'; // Fallback yang Anda inginkan
+                rootDomainSuffix.textContent = `.joss.krikkrik.tech`; // Fallback yang Anda inginkan
             }
         }
 
@@ -469,7 +495,6 @@
 
         addSubdomainBtn.addEventListener('click', async () => {
             const subdomainPart = subdomainInput.value.trim();
-            // Validasi di frontend (sesuai dengan backend)
             if (!subdomainPart) {
                 showNotification('Subdomain tidak boleh kosong.', 'error');
                 return;
@@ -483,7 +508,7 @@
                 return;
             }
 
-            addSubdomainBtn.disabled = true; // Disable tombol saat proses
+            addSubdomainBtn.disabled = true;
             showNotification('Menambahkan subdomain...', 'success');
             try {
                 const response = await fetch(`${BASE_API_URL}/subdomains`, {
@@ -497,74 +522,62 @@
                 const result = await response.json();
 
                 if (!response.ok) {
-                    // Tangani respons non-OK dari server (misal 400, 409, 500)
                     throw new Error(result.message || `Gagal Menambah Wildcard (Status: ${response.status}).`);
                 }
-                   
+                    
                 if (result.success) {
                     showNotification('Subdomain berhasil ditambahkan!', 'success');
-                    subdomainInput.value = ''; // Kosongkan input setelah berhasil
-                    loadSubdomains(); // Muat ulang daftar subdomain
+                    subdomainInput.value = ''; 
+                    loadSubdomains(); 
                 } else {
-                    // Ini seharusnya tidak tercapai jika !response.ok sudah ditangani
                     showNotification(result.message || 'Gagal Menambah Wildcard.', 'error');
                 }
             } catch (error) {
-                console.error('Error adding subdomain to backend:', error);
+                console.error('Error adding subdomain:', error);
                 showNotification(`Error: ${error.message}`, 'error');
             } finally {
-                addSubdomainBtn.disabled = false; // Aktifkan kembali tombol
+                addSubdomainBtn.disabled = false;
             }
         });
 
-        // Event listener untuk tombol delete di tabel
+        // Event delegation for delete buttons
         subdomainTableBody.addEventListener('click', (event) => {
-            if (event.target.classList.contains('delete-btn')) {
+            const deleteButton = event.target.closest('.delete-btn');
+            if (deleteButton) {
                 currentDomainToDelete = {
-                    id: event.target.dataset.domainId,
-                    name: event.target.dataset.domainName
+                    id: deleteButton.dataset.domainId,
+                    name: deleteButton.dataset.domainName
                 };
                 domainToDeleteSpan.textContent = currentDomainToDelete.name;
                 confirmDeletionModal.classList.remove('hidden');
-                deletePasswordInput.value = ''; // Kosongkan input password
-                deletePasswordInput.focus(); // Fokus ke input password
-                confirmDeleteBtn.disabled = true; // Nonaktifkan tombol Delete awal
+                deletePasswordInput.value = ''; // Clear password input
+                confirmDeleteBtn.disabled = true; // Disable confirm button initially
             }
         });
 
-        // Listener untuk input password di modal, untuk mengaktifkan/menonaktifkan tombol Hapus
+        // Event listener for password input in modal
         deletePasswordInput.addEventListener('input', () => {
-            confirmDeleteBtn.disabled = deletePasswordInput.value.trim() === '';
-        });
-
-        cancelDeleteBtn.addEventListener('click', () => {
-            confirmDeletionModal.classList.add('hidden');
-            currentDomainToDelete = null;
-            deletePasswordInput.value = '';
-            confirmDeleteBtn.disabled = true;
+            confirmDeleteBtn.disabled = deletePasswordInput.value.length === 0;
         });
 
         closeModalBtn.addEventListener('click', () => {
             confirmDeletionModal.classList.add('hidden');
-            currentDomainToDelete = null;
-            deletePasswordInput.value = '';
-            confirmDeleteBtn.disabled = true;
+        });
+
+        cancelDeleteBtn.addEventListener('click', () => {
+            confirmDeletionModal.classList.add('hidden');
         });
 
         confirmDeleteBtn.addEventListener('click', async () => {
-            const password = deletePasswordInput.value.trim();
-            if (!currentDomainToDelete) {
-                showNotification('Tidak ada domain yang dipilih untuk dihapus.', 'error');
-                confirmDeletionModal.classList.add('hidden');
-                return;
-            }
-            if (password === '') {
+            const password = deletePasswordInput.value;
+            if (!password) {
                 showNotification('Password tidak boleh kosong.', 'error');
                 return;
             }
 
-            confirmDeleteBtn.disabled = true; // Nonaktifkan tombol saat proses
+            confirmDeleteBtn.disabled = true; // Disable tombol saat proses
             showNotification('Menghapus subdomain...', 'success');
+
             try {
                 const response = await fetch(`${BASE_API_URL}/subdomains/${currentDomainToDelete.id}`, {
                     method: 'DELETE',
@@ -577,41 +590,32 @@
                 const result = await response.json();
 
                 if (!response.ok) {
-                    // Tangani respons non-OK dari server
-                    throw new Error(result.message || `Gagal menghapus subdomain (Status: ${response.status}).`);
+                    throw new Error(result.message || `Gagal Menghapus Wildcard (Status: ${response.status}).`);
                 }
-                   
+
                 if (result.success) {
                     showNotification('Subdomain berhasil dihapus!', 'success');
                     confirmDeletionModal.classList.add('hidden');
                     loadSubdomains(); // Muat ulang daftar subdomain
                 } else {
-                    showNotification(result.message || 'Gagal menghapus subdomain.', 'error');
-                    // Jika password salah, mungkin tidak perlu menyembunyikan modal
-                    if (result.message !== 'Password salah.') {
-                        confirmDeletionModal.classList.add('hidden');
-                    }
+                    showNotification(result.message || 'Gagal Menghapus Wildcard.', 'error');
                 }
             } catch (error) {
-                console.error('Error deleting subdomain via backend:', error);
+                console.error('Error deleting subdomain:', error);
                 showNotification(`Error: ${error.message}`, 'error');
-                confirmDeletionModal.classList.add('hidden');
             } finally {
-                currentDomainToDelete = null;
-                deletePasswordInput.value = '';
                 confirmDeleteBtn.disabled = false; // Aktifkan kembali tombol
             }
         });
 
-        // --- Pagination and Search Event Listeners ---
         entriesPerPageSelect.addEventListener('change', () => {
             entriesPerPage = parseInt(entriesPerPageSelect.value);
-            currentPage = 1; // Kembali ke halaman pertama saat jumlah entri per halaman berubah
+            currentPage = 1; // Kembali ke halaman pertama saat mengubah jumlah entri per halaman
             applyFiltersAndRender();
         });
 
-        searchSubdomainInput.addEventListener('keyup', () => {
-            currentPage = 1; // Kembali ke halaman pertama saat mencari
+        searchSubdomainInput.addEventListener('input', () => {
+            currentPage = 1; // Kembali ke halaman pertama saat melakukan pencarian
             applyFiltersAndRender();
         });
 
@@ -623,16 +627,21 @@
         });
 
         nextPageBtn.addEventListener('click', () => {
-            const totalPages = Math.ceil(allSubdomains.length / entriesPerPage);
+            const totalEntries = searchSubdomainInput.value.trim() === '' ? allSubdomains.length : 
+                                 allSubdomains.filter(domain => domain.hostname.toLowerCase().includes(searchSubdomainInput.value.toLowerCase().trim())).length;
+            const totalPages = Math.ceil(totalEntries / entriesPerPage);
             if (currentPage < totalPages) {
                 currentPage++;
                 applyFiltersAndRender();
             }
         });
 
-        // --- Initialization ---
-        applySavedTheme();
-        loadSubdomains(); // Muat subdomain saat halaman pertama kali dibuka
+        // Inisialisasi: panggil saat DOM siap
+        document.addEventListener('DOMContentLoaded', () => {
+            applySavedTheme(); // Terapkan tema yang disimpan
+            loadRootDomain(); // Muat root domain untuk tampilan
+            loadSubdomains(); // Muat data subdomain awal
+        });
     </script>
 </body>
 </html>
