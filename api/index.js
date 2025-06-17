@@ -1,15 +1,11 @@
-// api/index.js
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const fetch = require('node-fetch'); // v2.x.x
+const fetch = require('node-fetch'); // Pastikan ini v2
 
-// 1) Buat Express app
 const app = express();
-app.use(cors());
-app.use(express.json());
 
-// 2) Load ENV
+// ENV Variables
 const {
   CLOUDFLARE_API_KEY,
   CLOUDFLARE_ACCOUNT_ID,
@@ -26,119 +22,142 @@ if (
   !CLOUDFLARE_ROOT_DOMAIN ||
   !ADMIN_PASSWORD
 ) {
-  console.error('❌ Missing required environment variables!');
+  console.error('❌ Missing environment variables!');
 }
 
-// 3) Wrapper fetch ke Cloudflare
+app.use(cors());
+app.use(express.json());
+
 const CF_BASE = `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/domains`;
 const cfHeaders = {
   Authorization: `Bearer ${CLOUDFLARE_API_KEY}`,
   'Content-Type': 'application/json',
 };
+
 async function cloudflareFetch(method, endpoint = '', body) {
   const opts = { method, headers: cfHeaders };
   if (body) opts.body = JSON.stringify(body);
 
   const cfRes = await fetch(`${CF_BASE}${endpoint}`, opts);
-  const ct = cfRes.headers.get('content-type') || '';
+  const contentType = cfRes.headers.get('content-type') || '';
   let data = null, raw = null;
 
-  if (ct.includes('application/json')) {
+  if (contentType.includes('application/json')) {
     try {
       data = await cfRes.json();
-    } catch {
+    } catch (e) {
       raw = await cfRes.text();
+      console.warn('⚠️ JSON parse failed, raw text:', raw.slice(0, 100));
     }
   } else {
     raw = await cfRes.text();
+    console.warn('⚠️ Non-JSON response:', raw.slice(0, 100));
   }
+
   return { cfRes, data, raw };
 }
 
-// 4) ROUTES (tanpa /api prefix)
-// GET  /api/subdomains
-app.get('/subdomains', async (req, res, next) => {
+app.get('/api/subdomains', async (req, res) => {
   try {
     const { cfRes, data, raw } = await cloudflareFetch('GET');
+
     if (!cfRes.ok) {
       const msg = data?.errors?.[0]?.message || raw || 'Error fetching subdomains.';
       return res.status(cfRes.status).json({ success: false, message: msg });
     }
-    if (!Array.isArray(data.result)) {
-      return res.status(502).json({ success: false, message: 'Invalid Cloudflare response.' });
+
+    if (!Array.isArray(data?.result)) {
+      return res.status(502).json({
+        success: false,
+        message: 'Unexpected response format from Cloudflare.',
+      });
     }
-    const subs = data.result
+
+    const subdomains = data.result
       .filter(d =>
         d.service === CLOUDFLARE_SERVICE_NAME &&
         d.hostname.endsWith(CLOUDFLARE_ROOT_DOMAIN)
       )
       .map(d => ({ id: d.id, hostname: d.hostname }));
-    res.json({ success: true, subdomains: subs });
-  } catch (err) { next(err); }
+
+    return res.json({ success: true, subdomains });
+  } catch (err) {
+    console.error('GET /api/subdomains error:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
 });
 
-// POST /api/subdomains
-app.post('/subdomains', async (req, res, next) => {
-  try {
-    const { subdomainPart } = req.body;
-    if (!subdomainPart?.trim()) {
-      return res.status(400).json({ success: false, message: 'subdomainPart wajib diisi.' });
-    }
-    if (!/^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$/.test(subdomainPart)) {
-      return res.status(400).json({ success: false, message: 'Format subdomain tidak valid.' });
-    }
-    const hostname = `${subdomainPart.toLowerCase()}.${CLOUDFLARE_ROOT_DOMAIN}`;
+app.post('/api/subdomains', async (req, res) => {
+  const { subdomainPart } = req.body;
 
-    // Cek duplikat
+  if (!subdomainPart?.trim()) {
+    return res.status(400).json({ success: false, message: 'subdomainPart wajib diisi.' });
+  }
+
+  if (!/^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$/.test(subdomainPart)) {
+    return res.status(400).json({
+      success: false,
+      message: 'Subdomain hanya boleh berisi huruf, angka, dan tanda hubung.',
+    });
+  }
+
+  const hostname = `${subdomainPart.toLowerCase()}.${CLOUDFLARE_ROOT_DOMAIN}`;
+
+  try {
     const check = await cloudflareFetch('GET');
+    if (!check.cfRes.ok) {
+      const msg = check.data?.errors?.[0]?.message || check.raw || 'Gagal memeriksa subdomain.';
+      return res.status(check.cfRes.status).json({ success: false, message: msg });
+    }
+
     if (check.data?.result?.some(d => d.hostname === hostname)) {
       return res.status(409).json({ success: false, message: `${hostname} sudah terdaftar.` });
     }
 
-    // Buat
     const create = await cloudflareFetch('PUT', '', {
       environment: 'production',
       hostname,
       service: CLOUDFLARE_SERVICE_NAME,
       zone_id: CLOUDFLARE_ZONE_ID,
     });
+
     if (!create.cfRes.ok) {
-      const msg = create.data?.errors?.[0]?.message || create.raw || 'Gagal membuat subdomain.';
+      const msg = create.data?.errors?.[0]?.message || create.raw || 'Gagal menambahkan subdomain.';
       return res.status(create.cfRes.status).json({ success: false, message: msg });
     }
-    res.status(201).json({
+
+    return res.status(201).json({
       success: true,
-      message: `Subdomain '${hostname}' berhasil dibuat.`,
-      data: create.data.result,
+      message: `Subdomain '${hostname}' berhasil ditambahkan.`,
+      data: create.data?.result || null,
     });
-  } catch (err) { next(err); }
+  } catch (err) {
+    console.error('POST /api/subdomains error:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
 });
 
-// DELETE /api/subdomains/:id
-app.delete('/subdomains/:id', async (req, res, next) => {
+app.delete('/api/subdomains/:id', async (req, res) => {
+  const { id } = req.params;
+  const { password } = req.body;
+
+  if (password !== ADMIN_PASSWORD) {
+    return res.status(401).json({ success: false, message: 'Password salah.' });
+  }
+
   try {
-    const { id } = req.params;
-    const { password } = req.body;
-    if (password !== ADMIN_PASSWORD) {
-      return res.status(401).json({ success: false, message: 'Password salah.' });
-    }
     const del = await cloudflareFetch('DELETE', `/${id}`);
+
     if (!del.cfRes.ok) {
       const msg = del.data?.errors?.[0]?.message || del.raw || 'Gagal menghapus subdomain.';
       return res.status(del.cfRes.status).json({ success: false, message: msg });
     }
-    res.json({ success: true, message: 'Subdomain berhasil dihapus.' });
-  } catch (err) { next(err); }
+
+    return res.json({ success: true, message: 'Subdomain berhasil dihapus.' });
+  } catch (err) {
+    console.error('DELETE /api/subdomains error:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
 });
 
-// 5) Middleware fallback & error handler
-app.use((req, res) => {
-  res.status(404).json({ success: false, message: 'Endpoint tidak ditemukan.' });
-});
-app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
-  res.status(500).json({ success: false, message: 'Internal server error.' });
-});
-
-// 6) Export sebagai handler Vercel
-module.exports = (req, res) => app(req, res);
+module.exports = app;
