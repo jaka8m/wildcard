@@ -1,18 +1,17 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manajer Subdomain</title>
+    <title>Wildcard Manager</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* CSS Kustom */
         :root {
             --primary-dark: #1a202c;
             --container-dark: #2d3748;
             --card-dark: #4a5568;
-            --border-dark: #4a5568;
+            --border-dark: #64748b; /* Adjusted border color for better contrast */
             --gray-input: #6a7380;
             --purple-header: #6b46c1;
             --purple-btn: #805ad5;
@@ -22,7 +21,6 @@
             --success-green: #38a169;
             --active-green: #48bb78;
 
-            /* Variabel mode terang */
             --primary-light: #f7fafc;
             --container-light: #ffffff;
             --card-light: #edf2f7;
@@ -32,7 +30,6 @@
             --gray-btn-light: #a0aec0;
         }
 
-        /* Tema Gelap (Default) */
         .dark .bg-primary-dark { background-color: var(--primary-dark); }
         .dark .bg-container-dark { background-color: var(--container-dark); }
         .dark .bg-card-dark { background-color: var(--card-dark); }
@@ -41,7 +38,6 @@
         .dark .text-light-text { color: var(--light-text); }
         .dark .text-dark-text { color: var(--dark-text); }
 
-        /* Tema Terang */
         .light .bg-primary-dark { background-color: var(--primary-light); }
         .light .bg-container-dark { background-color: var(--container-light); }
         .light .bg-card-dark { background-color: var(--card-light); }
@@ -56,7 +52,6 @@
         .light .bg-gray-600 { background-color: var(--gray-input-light); }
         .light .text-gray-300 { color: #4a5568; }
 
-        /* Warna Universal */
         .bg-purple-header { background-color: var(--purple-header); }
         .bg-purple-btn { background-color: var(--purple-btn); }
         .hover\:bg-purple-header:hover { background-color: var(--purple-header); }
@@ -65,7 +60,6 @@
         .bg-success-green { background-color: var(--success-green); }
         .text-active-green { color: var(--active-green); }
 
-        /* Animasi "Disalin!" */
         .copy-success {
             position: absolute;
             background-color: #4CAF50;
@@ -98,21 +92,30 @@
             }
         }
 
-        /* Gaya Tabel */
+        .table {
+            border: 1px solid var(--border-dark); /* Add overall border to the table */
+        }
+
         .table th, .table td {
             vertical-align: middle;
+            border: 1px solid var(--border-dark); /* Apply border to all sides of cells */
         }
+           
+        /* Ensure the first-child and last-child borders are handled by the general 'border' rule */
+        .table th:first-child,
+        .table td:first-child {
+            border-left: 1px solid var(--border-dark); /* Explicitly add left border to the first column */
+        }
+
         .w-no {
             width: 50px;
         }
 
-        /* Fokus pada Input */
         input:focus, select:focus, button:focus {
             outline: 2px solid var(--purple-btn);
             outline-offset: 2px;
         }
 
-        /* Gaya Tombol Dinonaktifkan */
         button:disabled {
             cursor: not-allowed;
             opacity: 0.6;
@@ -124,11 +127,11 @@
         <header class="flex flex-col md:flex-row items-start md:items-center justify-between pb-4 border-b border-border-dark mb-4">
             <div class="flex items-center mb-2 md:mb-0">
                 <i class="fas fa-home text-xl text-gray-400 mr-2"></i>
-                <h1 class="text-xl md:text-2xl font-bold text-white">Manajer Subdomain</h1>
+                <h1 class="text-xl md:text-2xl font-bold text-white">Wildcard Manager</h1>
             </div>
             <button id="themeToggle" class="py-2 px-4 rounded-full bg-gray-700 text-white text-sm flex items-center justify-center hover:bg-gray-600 transition duration-300 shadow-md">
                 <i class="fas fa-sun mr-2 text-yellow-400"></i>
-                <span id="themeText">Mode Terang</span>
+                <span id="themeText">Light Mode</span>
                 <i class="fas fa-moon ml-2 text-blue-300 hidden"></i>
             </button>
         </header>
@@ -136,102 +139,105 @@
         <section class="card bg-card-dark rounded-lg mb-4 overflow-hidden">
             <div class="bg-purple-header p-3 flex items-center text-white">
                 <i class="fas fa-plus-circle text-lg mr-2"></i>
-                <h2 class="text-lg font-semibold">Tambah Subdomain</h2>
+                <h2 class="text-lg font-semibold">Add Wildcard</h2>
             </div>
             <div class="card-body p-4">
-                <div class="mb-4">
-                    <label class="block text-sm font-medium mb-1">Domain:</label>
-                    <input type="text" value="joss.krikkrik.tech" disabled class="w-full p-2 border border-gray-600 rounded bg-gray-600 text-gray-300 cursor-not-allowed text-sm">
+                <div class="mb-4 flex items-center">
+                    <label class="fas fa-globe text-xs mr-1"><strong> Domain :</strong></label>
+                    <span class="text-xs text-gray-300">joss.krikkrik.tech</span>
                 </div>
                 <div class="mb-4">
                     <label for="subdomainInput" class="block text-sm font-medium mb-1">Subdomain</label>
-                    <div class="flex flex-col sm:flex-row">
-                        <input type="text" id="subdomainInput" placeholder="Masukkan subdomain (misalnya, blog)" class="flex-grow p-2 border border-gray-600 rounded-t-md sm:rounded-l-md sm:rounded-t-none bg-gray-input text-white outline-none text-sm mb-2 sm:mb-0">
-                        <span class="bg-gray-700 text-white p-2 rounded-b-md sm:rounded-r-md sm:rounded-b-none whitespace-nowrap flex items-center justify-center text-sm">.joss.krikkrik.tech</span>
+                    <div class="flex">
+                        <input type="text" id="subdomainInput" placeholder="Enter subdomain (e.g., blog)" class="w-2/3 p-2 border border-gray-600 rounded-l bg-gray-input text-white outline-none text-xs">
+                        <span class="bg-gray-700 text-white p-2 rounded-r whitespace-nowrap flex items-center justify-center text-xs">.joss.krikkrik.tech</span>
                     </div>
                 </div>
-                <button id="addSubdomainBtn" class="w-full py-2 px-4 rounded bg-purple-btn text-white text-base hover:bg-purple-header transition duration-300">Tambah Subdomain</button>
+                <button id="addSubdomainBtn" class="w-full py-2 px-4 rounded bg-purple-btn text-white text-sm hover:bg-purple-header transition duration-300">
+                    <i class="fas fa-save me-2"></i> Add Wildcard
+                </button>
             </div>
         </section>
 
         <section class="card bg-card-dark rounded-lg mb-4 overflow-hidden">
             <div class="bg-purple-header p-3 flex items-center text-white">
                 <i class="fas fa-list text-lg mr-2"></i>
-                <h2 class="text-lg font-semibold">Daftar Subdomain</h2>
+                <h2 class="text-lg font-semibold">Wildcard List</h2>
             </div>
             <div class="card-body p-4">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
                     <div class="flex items-center text-sm">
-                        <span>Tampilkan</span>
+                        <span>Show</span>
                         <select id="entriesPerPage" class="ml-2 mr-2 p-1 border border-gray-600 rounded bg-gray-input text-white text-sm">
                             <option value="10">10</option>
                             <option value="25">25</option>
                             <option value="50">50</option>
                         </select>
-                        <span>entri</span>
+                        <span>entries</span>
                     </div>
                     <div class="flex items-center text-sm w-full sm:w-auto">
-                        <span>Cari:</span>
-                        <input type="text" id="searchSubdomain" class="ml-2 p-1 border border-gray-600 rounded bg-gray-input text-white outline-none w-full sm:w-auto">
+                        <span>Search:</span>
+                        <input type="text" id="searchSubdomain" class="ml-2 p-1 border border-gray-600 rounded bg-gray-input text-white outline-none w-full sm:w-auto" placeholder="Search Wildcard...">
                     </div>
                 </div>
                 <div class="overflow-x-auto mb-4">
                     <table class="w-full border-collapse min-w-[500px] text-sm table">
                         <thead>
                             <tr class="bg-gray-700 text-white">
-                                <th class="p-3 text-left border-b border-gray-600 whitespace-nowrap w-no">No.</th>
-                                <th class="p-3 text-left border-b border-gray-600 whitespace-nowrap">Subdomain</th>
-                                <th class="p-3 text-left border-b border-gray-600 whitespace-nowrap">Status</th>
-                                <th class="p-3 text-left border-b border-gray-600 whitespace-nowrap">Tindakan</th>
+                                <th class="p-3 text-left whitespace-nowrap w-no">No.</th>
+                                <th class="p-3 text-left whitespace-nowrap">Wildcard</th>
+                                <th class="p-3 text-left whitespace-nowrap">Status</th>
+                                <th class="p-3 text-left whitespace-nowrap">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="subdomainTableBody">
+                            <tr><td colspan="4" class="p-3 text-center text-gray-400">Loading subdomains...</td></tr>
                         </tbody>
                     </table>
                 </div>
                 <div class="flex flex-col sm:flex-row justify-between items-center text-sm mt-4 gap-3">
-                    <span id="paginationText">Menampilkan 0 hingga 0 dari 0 entri</span>
+                    <span id="paginationText">Showing 0 to 0 of 0 entries</span>
                     <div class="flex gap-2">
-                        <button id="prevPageBtn" class="py-2 px-3 rounded bg-gray-700 text-white text-sm hover:bg-gray-600 transition duration-300">Sebelumnya</button>
+                        <button id="prevPageBtn" class="py-2 px-3 rounded bg-gray-700 text-white text-sm hover:bg-gray-600 transition duration-300">Prev</button>
                         <div id="paginationNumbers" class="flex gap-2">
                         </div>
-                        <button id="nextPageBtn" class="py-2 px-3 rounded bg-gray-700 text-white text-sm hover:bg-gray-600 transition duration-300">Berikutnya</button>
+                        <button id="nextPageBtn" class="py-2 px-3 rounded bg-gray-700 text-white text-sm hover:bg-gray-600 transition duration-300">Next</button>
                     </div>
                 </div>
             </div>
         </section>
 
         <div id="errorMessage" class="bg-danger-red text-white p-3 rounded-md mt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between font-bold hidden">
-            <span>Error!</span>
+            <span class="flex items-center"><i class="fas fa-exclamation-triangle mr-2"></i> Error:</span>
             <span id="errorText"></span>
         </div>
 
         <div id="successMessage" class="bg-success-green text-white p-3 rounded-md mt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between font-bold hidden">
-            <span>Berhasil!</span>
+            <span class="flex items-center"><i class="fas fa-check-circle mr-2"></i> Success:</span>
             <span id="successText"></span>
         </div>
 
         <div id="confirmDeletionModal" class="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 hidden">
             <div class="bg-card-dark p-6 rounded-lg w-11/12 max-w-md shadow-xl">
                 <div class="flex justify-between items-center border-b border-gray-600 pb-3 mb-4">
-                    <h2 class="text-xl font-semibold text-white">Konfirmasi Penghapusan</h2>
+                    <h2 class="text-xl font-semibold text-white">Confirm Deletion</h2>
                     <span class="text-gray-400 text-3xl font-bold cursor-pointer hover:text-white" id="closeModalBtn">&times;</span>
                 </div>
                 <div class="mb-4">
-                    <p class="mb-2 text-sm">Anda akan menghapus '<span id="domainToDelete"></span>'.</p>
-                    <p class="mb-3 text-sm">Silakan masukkan kata sandi untuk mengonfirmasi:</p>
-                    <input type="password" id="deletePassword" placeholder="Masukkan kata sandi" class="w-full p-2 border border-gray-600 rounded bg-gray-input text-white outline-none text-sm">
+                    <p class="mb-2 text-sm">Anda akan menghapus '<span id="domainToDelete" class="font-semibold text-white"></span>'.</p>
+                    <p class="mb-3 text-sm">Masukkan password untuk konfirmasi:</p>
+                    <input type="password" id="deletePassword" placeholder="Masukkan password" class="w-full p-2 border border-gray-600 rounded bg-gray-input text-white outline-none text-sm">
                 </div>
                 <div class="flex justify-end gap-3 flex-wrap">
                     <button id="cancelDeleteBtn" class="py-2 px-4 rounded bg-gray-700 text-white text-sm hover:bg-gray-600 transition duration-300 flex-grow sm:flex-grow-0">Batal</button>
-                    <button id="confirmDeleteBtn" class="py-2 px-4 rounded bg-danger-red text-white text-sm hover:bg-red-700 transition duration-300 flex-grow sm:flex-grow-0">Hapus</button>
+                    <button id="confirmDeleteBtn" class="py-2 px-4 rounded bg-danger-red text-white text-sm hover:bg-red-700 transition duration-300 flex-grow sm:flex-grow-0" disabled>Hapus</button>
                 </div>
             </div>
         </div>
     </div>
 
     <footer class="text-center mt-6 pt-4 border-t border-border-dark text-dark-text text-sm">
-        <p class="mb-2">&copy; 2025 Manajer Subdomain <span class="text-red-500">❤️</span> oleh Geo Project</p>
+        <p class="mb-2">&copy; 2025 Wildcard Manager <span class="text-red-500">❤️</span> by Geo Project</p>
         <div class="social-icons">
             <a href="#" class="text-gray-400 text-lg mx-2 hover:text-white transition duration-300"><i class="fab fa-facebook"></i></a>
             <a href="#" class="text-gray-400 text-lg mx-2 hover:text-white transition duration-300"><i class="fab fa-instagram"></i></a>
@@ -239,11 +245,9 @@
     </footer>
 
     <script>
-        // URL dasar untuk backend API Anda. Ketika di-deploy ke Vercel, fungsi serverless
-        // Anda akan diakses melalui path `/api`.
-        const BASE_API_URL = 'https://api.krikkrik.tech/api'; // Diubah dari 'http://localhost:3000/api'
+        const BASE_API_URL = 'https://api.krikkrik.tech/api'; // Sesuaikan port jika Anda mengubahnya di app.js
 
-        // Elemen UI
+
         const subdomainInput = document.getElementById('subdomainInput');
         const addSubdomainBtn = document.getElementById('addSubdomainBtn');
         const subdomainTableBody = document.getElementById('subdomainTableBody');
@@ -256,7 +260,7 @@
         const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
         const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
         const domainToDeleteSpan = document.getElementById('domainToDelete');
-        const deletePasswordInput = document.getElementById('deletePassword');
+        const deletePasswordInput = document.getElementById('deletePassword'); // Perbaikan: Ambil elemen dengan benar
         const entriesPerPageSelect = document.getElementById('entriesPerPage');
         const searchSubdomainInput = document.getElementById('searchSubdomain');
         const paginationTextSpan = document.getElementById('paginationText');
@@ -267,89 +271,75 @@
         const themeText = document.getElementById('themeText');
 
         let currentDomainToDelete = null;
-        let allSubdomains = []; // Array untuk menyimpan semua subdomain yang diambil
+        let allSubdomains = []; // Semua data subdomain yang diambil dari API
         let currentPage = 1;
         let entriesPerPage = parseInt(entriesPerPageSelect.value);
 
-        /**
-         * Mengganti antara tema terang dan gelap.
-         */
+        // --- Theme Toggling ---
         function toggleTheme() {
             const html = document.documentElement;
             if (html.classList.contains('dark')) {
                 html.classList.remove('dark');
                 html.classList.add('light');
                 localStorage.setItem('theme', 'light');
-                themeText.textContent = 'Mode Gelap';
-                themeToggle.innerHTML = '<i class="fas fa-moon mr-2 text-blue-300"></i><span>Mode Gelap</span>';
+                themeToggle.innerHTML = '<i class="fas fa-moon mr-2 text-blue-300"></i><span>Dark Mode</span>';
             } else {
                 html.classList.remove('light');
                 html.classList.add('dark');
                 localStorage.setItem('theme', 'dark');
-                themeText.textContent = 'Mode Terang';
-                themeToggle.innerHTML = '<i class="fas fa-sun mr-2 text-yellow-400"></i><span>Mode Terang</span>';
+                themeToggle.innerHTML = '<i class="fas fa-sun mr-2 text-yellow-400"></i><span>Light Mode</span>';
             }
         }
 
-        /**
-         * Menerapkan preferensi tema yang disimpan saat halaman dimuat.
-         */
         function applySavedTheme() {
-            const savedTheme = localStorage.getItem('theme') || 'dark'; // Default ke gelap jika tidak ada preferensi
+            const savedTheme = localStorage.getItem('theme') || 'dark'; // Default ke 'dark'
             const html = document.documentElement;
             html.classList.add(savedTheme);
             if (savedTheme === 'light') {
-                themeText.textContent = 'Mode Gelap';
-                themeToggle.innerHTML = '<i class="fas fa-moon mr-2 text-blue-300"></i><span>Mode Gelap</span>';
+                themeToggle.innerHTML = '<i class="fas fa-moon mr-2 text-blue-300"></i><span>Dark Mode</span>';
             } else {
-                themeText.textContent = 'Mode Terang';
-                themeToggle.innerHTML = '<i class="fas fa-sun mr-2 text-yellow-400"></i><span>Mode Terang</span>';
+                themeToggle.innerHTML = '<i class="fas fa-sun mr-2 text-yellow-400"></i><span>Light Mode</span>';
             }
         }
 
-        /**
-         * Menampilkan pesan notifikasi kepada pengguna.
-         * @param {string} message - Pesan yang akan ditampilkan.
-         * @param {'error'|'success'} type - Tipe notifikasi (misalnya, 'error', 'success').
-         */
+        // --- Notification Handling ---
+        let notificationTimeout; // Untuk mengelola timeout notifikasi
+
         function showNotification(message, type) {
+            clearTimeout(notificationTimeout); // Hapus timeout sebelumnya
             errorMessageDiv.classList.add('hidden');
             successMessageDiv.classList.add('hidden');
 
-            if (type === 'error') {
-                errorTextSpan.textContent = message;
-                errorMessageDiv.classList.remove('hidden');
-            } else if (type === 'success') {
-                successTextSpan.textContent = message;
-                successMessageDiv.classList.remove('hidden');
-            }
+            const targetDiv = (type === 'error') ? errorMessageDiv : successMessageDiv;
+            const targetSpan = (type === 'error') ? errorTextSpan : successTextSpan;
 
-            setTimeout(() => {
-                errorMessageDiv.classList.add('hidden');
-                successMessageDiv.classList.add('hidden');
+            targetSpan.textContent = message;
+            targetDiv.classList.remove('hidden');
+
+            // Sembunyikan notifikasi setelah 5 detik
+            notificationTimeout = setTimeout(() => {
+                targetDiv.classList.add('hidden');
             }, 5000);
         }
 
-        /**
-         * Menyalin teks ke clipboard dan menampilkan animasi "Disalin!".
-         * @param {string} text - Teks yang akan disalin.
-         * @param {HTMLElement} element - Elemen di samping mana pesan "Disalin!" akan muncul.
-         */
+        // --- Clipboard Copy Functionality ---
         function copyToClipboard(text, element) {
             navigator.clipboard.writeText(text).then(() => {
                 const successSpan = document.createElement('span');
                 successSpan.className = 'copy-success';
                 successSpan.textContent = 'Disalin!';
-                
+                   
                 const parentTd = element.closest('td');
+                // Pastikan parent TD memiliki posisi 'relative' untuk penempatan absolut span
                 if (parentTd && window.getComputedStyle(parentTd).position === 'static') {
                     parentTd.style.position = 'relative';
                 }
                 parentTd.appendChild(successSpan);
 
+                // Posisi span di atas elemen yang diklik
                 const rect = element.getBoundingClientRect();
                 const parentRect = parentTd.getBoundingClientRect();
-                
+                   
                 successSpan.style.top = `${rect.top - parentRect.top - successSpan.offsetHeight - 5}px`;
                 successSpan.style.left = `${rect.left - parentRect.left + (rect.width / 2) - (successSpan.offsetWidth / 2)}px`;
 
@@ -357,20 +347,17 @@
                     successSpan.remove();
                 }, 1500);
             }).catch(err => {
-                console.error('Gagal menyalin: ', err);
+                console.error('Failed to copy: ', err);
                 showNotification('Gagal menyalin teks.', 'error');
             });
         }
 
-        /**
-         * Merender subdomain ke tabel berdasarkan filter dan paginasi saat ini.
-         * @param {Array<Object>} domainsToRender - Array objek subdomain yang akan dirender.
-         */
+        // --- Subdomain Table Rendering & Pagination ---
         function renderSubdomains(domainsToRender) {
-            subdomainTableBody.innerHTML = ''; // Hapus baris yang ada
+            subdomainTableBody.innerHTML = '';
 
             if (domainsToRender.length === 0) {
-                subdomainTableBody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-400">Tidak ada subdomain yang cocok ditemukan.</td></tr>';
+                subdomainTableBody.innerHTML = '<tr><td colspan="4" class="p-3 text-center text-gray-400">Tidak ada subdomain ditemukan.</td></tr>';
                 updatePagination(0);
                 return;
             }
@@ -385,18 +372,22 @@
                 const displayIndex = startIndex + index + 1;
 
                 row.innerHTML = `
-                    <td class="p-3 border-b border-gray-600 whitespace-nowrap w-no">${displayIndex}</td>
-                    <td class="p-3 border-b border-gray-600 whitespace-nowrap">
+                    <td class="p-3 whitespace-nowrap w-no">
+                        ${displayIndex}
+                    </td>
+                    <td class="p-3 whitespace-nowrap">
                         <span class="subdomain-text cursor-pointer hover:underline" data-full-domain="${domain.hostname}">${domain.hostname}</span>
                     </td>
-                    <td class="p-3 border-b border-gray-600 whitespace-nowrap"><span class="text-active-green font-bold">Aktif</span></td>
-                    <td class="p-3 border-b border-gray-600 whitespace-nowrap">
+                    <td class="p-3 whitespace-nowrap">
+                        <span class="text-active-green font-bold">Aktif</span>
+                    </td>
+                    <td class="p-3 whitespace-nowrap">
                         <button class="py-1 px-3 rounded bg-danger-red text-white text-sm hover:bg-red-700 transition duration-300 delete-btn" data-domain-id="${domain.id}" data-domain-name="${domain.hostname}">Hapus</button>
                     </td>
                 `;
             });
 
-            // Tambahkan event listener untuk menyalin setelah rendering
+            // Tambahkan event listener untuk fungsi salin setelah elemen dirender
             document.querySelectorAll('.subdomain-text').forEach(element => {
                 element.addEventListener('click', (event) => {
                     const fullDomain = event.target.dataset.fullDomain;
@@ -407,27 +398,26 @@
             updatePagination(domainsToRender.length);
         }
 
-        /**
-         * Memperbarui kontrol paginasi dan teks.
-         * @param {number} totalEntries - Jumlah total entri yang difilter.
-         */
         function updatePagination(totalEntries) {
             const totalPages = Math.ceil(totalEntries / entriesPerPage);
-            
+               
             const startEntry = Math.min(totalEntries, (currentPage - 1) * entriesPerPage + 1);
             const endEntry = Math.min(totalEntries, currentPage * entriesPerPage);
-            paginationTextSpan.textContent = `Menampilkan ${startEntry} hingga ${endEntry} dari ${totalEntries} entri`;
+            paginationTextSpan.textContent = `Menampilkan ${startEntry} sampai ${endEntry} dari ${totalEntries} entri`;
 
             paginationNumbersDiv.innerHTML = '';
-            for (let i = 1; i <= totalPages; i++) {
-                const button = document.createElement('button');
-                button.textContent = i;
-                button.className = `py-2 px-3 rounded text-white text-sm transition duration-300 ${i === currentPage ? 'bg-purple-btn hover:bg-purple-header' : 'bg-gray-700 hover:bg-gray-600'}`;
-                button.addEventListener('click', () => {
-                    currentPage = i;
-                    applyFiltersAndRender();
-                });
-                paginationNumbersDiv.appendChild(button);
+            // Hanya tampilkan tombol halaman jika ada lebih dari 1 halaman
+            if (totalPages > 1) {
+                for (let i = 1; i <= totalPages; i++) {
+                    const button = document.createElement('button');
+                    button.textContent = i;
+                    button.className = `py-2 px-3 rounded text-white text-sm transition duration-300 ${i === currentPage ? 'bg-purple-btn hover:bg-purple-header' : 'bg-gray-700 hover:bg-gray-600'}`;
+                    button.addEventListener('click', () => {
+                        currentPage = i;
+                        applyFiltersAndRender();
+                    });
+                    paginationNumbersDiv.appendChild(button);
+                }
             }
 
             prevPageBtn.disabled = currentPage === 1;
@@ -439,9 +429,7 @@
             nextPageBtn.classList.toggle('cursor-not-allowed', nextPageBtn.disabled);
         }
 
-        /**
-         * Mengambil subdomain dari API.
-         */
+        // --- API Calls ---
         async function loadSubdomains() {
             showNotification('Memuat subdomain...', 'success');
             try {
@@ -454,22 +442,20 @@
 
                 if (data.success) {
                     allSubdomains = data.subdomains;
-                    showNotification('Subdomain berhasil dimuat.', 'success');
+                    showNotification('Subdomain berhasil dimuat!', 'success');
                 } else {
                     showNotification(data.message || 'Gagal memuat subdomain.', 'error');
                 }
             } catch (error) {
-                console.error('Error mengambil subdomain dari backend:', error);
+                console.error('Error fetching subdomains from backend:', error);
                 showNotification(`Error: ${error.message}`, 'error');
-                allSubdomains = [];
+                allSubdomains = []; // Kosongkan jika ada error
             } finally {
-                applyFiltersAndRender();
+                applyFiltersAndRender(); // Selalu render ulang setelah upaya pemuatan
             }
         }
 
-        /**
-         * Menerapkan filter pencarian dan merender ulang tabel subdomain.
-         */
+        // --- Filtering and Rendering ---
         function applyFiltersAndRender() {
             const searchTerm = searchSubdomainInput.value.toLowerCase().trim();
             const filteredDomains = allSubdomains.filter(domain =>
@@ -478,21 +464,26 @@
             renderSubdomains(filteredDomains);
         }
 
-        // --- Event Listener ---
-
+        // --- Event Listeners ---
         themeToggle.addEventListener('click', toggleTheme);
 
         addSubdomainBtn.addEventListener('click', async () => {
             const subdomainPart = subdomainInput.value.trim();
-            if (subdomainPart === '') {
+            // Validasi di frontend (sesuai dengan backend)
+            if (!subdomainPart) {
                 showNotification('Subdomain tidak boleh kosong.', 'error');
                 return;
             }
-            if (!/^[a-zA-Z0-9-]+$/.test(subdomainPart) || subdomainPart.startsWith('-') || subdomainPart.endsWith('-')) {
-                showNotification('Subdomain hanya boleh berisi huruf, angka, dan tanda hubung, dan tidak boleh diawali atau diakhiri dengan tanda hubung.', 'error');
+            if (!/^[a-zA-Z0-9]+(?:-[a-zA-Z0-9]+)*$/.test(subdomainPart)) {
+                showNotification('Subdomain hanya boleh mengandung huruf, angka, dan hyphen. Tidak boleh diawali atau diakhiri dengan hyphen, dan tidak boleh ada hyphen berturut-turut.', 'error');
+                return;
+            }
+            if (subdomainPart.length < 2 || subdomainPart.length > 63) {
+                showNotification('Subdomain harus memiliki panjang antara 2 hingga 63 karakter.', 'error');
                 return;
             }
 
+            addSubdomainBtn.disabled = true; // Disable tombol saat proses
             showNotification('Menambahkan subdomain...', 'success');
             try {
                 const response = await fetch(`${BASE_API_URL}/subdomains`, {
@@ -506,23 +497,27 @@
                 const result = await response.json();
 
                 if (!response.ok) {
-                    throw new Error(result.message || 'Gagal menambahkan subdomain karena error server.');
+                    // Tangani respons non-OK dari server (misal 400, 409, 500)
+                    throw new Error(result.message || `Gagal Menambah Wildcard (Status: ${response.status}).`);
                 }
-                
+                   
                 if (result.success) {
                     showNotification('Subdomain berhasil ditambahkan!', 'success');
-                    subdomainInput.value = '';
-                    loadSubdomains();
+                    subdomainInput.value = ''; // Kosongkan input setelah berhasil
+                    loadSubdomains(); // Muat ulang daftar subdomain
                 } else {
-                    showNotification(result.message || 'Gagal menambahkan subdomain.', 'error');
+                    // Ini seharusnya tidak tercapai jika !response.ok sudah ditangani
+                    showNotification(result.message || 'Gagal Menambah Wildcard.', 'error');
                 }
             } catch (error) {
-                console.error('Error menambahkan subdomain ke backend:', error);
+                console.error('Error adding subdomain to backend:', error);
                 showNotification(`Error: ${error.message}`, 'error');
+            } finally {
+                addSubdomainBtn.disabled = false; // Aktifkan kembali tombol
             }
         });
 
-        // Delegasi event untuk tombol hapus
+        // Event listener untuk tombol delete di tabel
         subdomainTableBody.addEventListener('click', (event) => {
             if (event.target.classList.contains('delete-btn')) {
                 currentDomainToDelete = {
@@ -531,35 +526,44 @@
                 };
                 domainToDeleteSpan.textContent = currentDomainToDelete.name;
                 confirmDeletionModal.classList.remove('hidden');
-                deletePasswordInput.value = '';
-                deletePasswordInput.focus();
+                deletePasswordInput.value = ''; // Kosongkan input password
+                deletePasswordInput.focus(); // Fokus ke input password
+                confirmDeleteBtn.disabled = true; // Nonaktifkan tombol Delete awal
             }
+        });
+
+        // Listener untuk input password di modal, untuk mengaktifkan/menonaktifkan tombol Hapus
+        deletePasswordInput.addEventListener('input', () => {
+            confirmDeleteBtn.disabled = deletePasswordInput.value.trim() === '';
         });
 
         cancelDeleteBtn.addEventListener('click', () => {
             confirmDeletionModal.classList.add('hidden');
             currentDomainToDelete = null;
             deletePasswordInput.value = '';
+            confirmDeleteBtn.disabled = true;
         });
 
         closeModalBtn.addEventListener('click', () => {
             confirmDeletionModal.classList.add('hidden');
             currentDomainToDelete = null;
             deletePasswordInput.value = '';
+            confirmDeleteBtn.disabled = true;
         });
 
         confirmDeleteBtn.addEventListener('click', async () => {
-            const password = deletePasswordInput.value;
+            const password = deletePasswordInput.value.trim();
             if (!currentDomainToDelete) {
                 showNotification('Tidak ada domain yang dipilih untuk dihapus.', 'error');
                 confirmDeletionModal.classList.add('hidden');
                 return;
             }
             if (password === '') {
-                showNotification('Kata sandi tidak boleh kosong.', 'error');
+                showNotification('Password tidak boleh kosong.', 'error');
                 return;
             }
 
+            confirmDeleteBtn.disabled = true; // Nonaktifkan tombol saat proses
             showNotification('Menghapus subdomain...', 'success');
             try {
                 const response = await fetch(`${BASE_API_URL}/subdomains/${currentDomainToDelete.id}`, {
@@ -573,37 +577,41 @@
                 const result = await response.json();
 
                 if (!response.ok) {
-                    throw new Error(result.message || 'Gagal menghapus subdomain karena error server.');
+                    // Tangani respons non-OK dari server
+                    throw new Error(result.message || `Gagal menghapus subdomain (Status: ${response.status}).`);
                 }
-                
+                   
                 if (result.success) {
                     showNotification('Subdomain berhasil dihapus!', 'success');
                     confirmDeletionModal.classList.add('hidden');
-                    loadSubdomains();
+                    loadSubdomains(); // Muat ulang daftar subdomain
                 } else {
                     showNotification(result.message || 'Gagal menghapus subdomain.', 'error');
-                    if (result.message !== 'Kata sandi salah.') {
+                    // Jika password salah, mungkin tidak perlu menyembunyikan modal
+                    if (result.message !== 'Password salah.') {
                         confirmDeletionModal.classList.add('hidden');
                     }
                 }
             } catch (error) {
-                console.error('Error menghapus subdomain melalui backend:', error);
+                console.error('Error deleting subdomain via backend:', error);
                 showNotification(`Error: ${error.message}`, 'error');
                 confirmDeletionModal.classList.add('hidden');
             } finally {
                 currentDomainToDelete = null;
                 deletePasswordInput.value = '';
+                confirmDeleteBtn.disabled = false; // Aktifkan kembali tombol
             }
         });
 
+        // --- Pagination and Search Event Listeners ---
         entriesPerPageSelect.addEventListener('change', () => {
             entriesPerPage = parseInt(entriesPerPageSelect.value);
-            currentPage = 1;
+            currentPage = 1; // Kembali ke halaman pertama saat jumlah entri per halaman berubah
             applyFiltersAndRender();
         });
 
         searchSubdomainInput.addEventListener('keyup', () => {
-            currentPage = 1;
+            currentPage = 1; // Kembali ke halaman pertama saat mencari
             applyFiltersAndRender();
         });
 
@@ -622,11 +630,9 @@
             }
         });
 
-        // Muat subdomain awal dan terapkan tema saat konten DOM sepenuhnya dimuat
-        document.addEventListener('DOMContentLoaded', () => {
-            applySavedTheme();
-            loadSubdomains();
-        });
+        // --- Initialization ---
+        applySavedTheme();
+        loadSubdomains(); // Muat subdomain saat halaman pertama kali dibuka
     </script>
 </body>
 </html>
